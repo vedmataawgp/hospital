@@ -139,6 +139,83 @@ The chat feature lives at `/chat` and works like WhatsApp / Instagram DMs.
 
 ---
 
+## Backend REST API Reference
+
+### Auth
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| POST | `/api/auth/register/` | No | Register (role: patient/doctor/admin) |
+| POST | `/api/auth/login/` | No | Login — returns JWT |
+| GET | `/api/auth/profile/` | Yes | Get current user |
+| PUT/PATCH | `/api/auth/profile/update/` | Yes | Update current user |
+| POST | `/api/contact/` | No | Submit contact form |
+
+### Departments (static catalogue)
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/departments/` | No | List all 8 departments |
+| GET | `/api/departments/{id}/` | No | Get single department |
+
+### Doctors (admin/public)
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/doctors/` | No | List doctors (search, paginated) |
+| POST | `/api/doctors/` | Yes | Create doctor |
+| GET | `/api/doctors/{id}/` | No | Get single doctor |
+| PUT | `/api/doctors/{id}/` | Yes | Update doctor |
+| DELETE | `/api/doctors/{id}/` | Yes | Delete doctor |
+| GET | `/api/doctors/{id}/availability/` | No | Get available slots |
+
+### Doctor Portal (logged-in doctor's own data)
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/doctor/dashboard/` | Yes | Stats + recent appointments |
+| GET | `/api/doctor/patients/` | Yes | Patients who booked this doctor |
+| GET | `/api/doctor/prescriptions/` | Yes | List prescriptions |
+| POST | `/api/doctor/prescriptions/` | Yes | Create prescription `{patient_name, notes}` |
+
+### Patients (admin)
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/patients/` | Yes | List patients |
+| POST | `/api/patients/` | Yes | Create patient |
+| GET | `/api/patients/{id}/` | Yes | Get patient |
+| PUT | `/api/patients/{id}/` | Yes | Update patient |
+| DELETE | `/api/patients/{id}/` | Yes | Delete patient |
+
+### Patient Portal (logged-in patient's own data)
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/patient/dashboard/` | Yes | Stats + recent appointments |
+| GET/PATCH | `/api/patient/profile/` | Yes | View or update own profile |
+| GET | `/api/patient/reports/` | Yes | Own medical reports |
+| GET | `/api/patient/invoices/` | Yes | Own billing invoices |
+
+### Admin Dashboard
+| Method | Endpoint | Auth | Description |
+|--------|----------|------|-------------|
+| GET | `/api/admin/overview/` | Yes | Platform-wide stats |
+| GET | `/api/admin/dashboard/` | Yes | Same as overview (alias) |
+| GET | `/api/admin/analytics/` | Yes | Chart data `?period=week|month|year` |
+| GET | `/api/admin/users/` | Yes | All users `?role=&search=` |
+| PUT/DELETE | `/api/admin/users/{id}/` | Yes | Update/delete user |
+| GET/POST | `/api/admin/doctors/` | Yes | List or add doctors |
+| DELETE | `/api/admin/doctors/{id}/` | Yes | Remove doctor |
+| GET | `/api/admin/patients/` | Yes | List all patients |
+| GET | `/api/admin/appointments/` | Yes | List all appointments |
+
+### Appointments, Billing, Reports, Notifications, Chat
+| Prefix | Description |
+|--------|-------------|
+| `/api/appointments/` | CRUD for appointments |
+| `/api/billing/` | Billing records |
+| `/api/reports/` | Medical reports |
+| `/api/notifications/` | Notifications |
+| `/api/chat/conversations/` | Messaging conversations |
+| `/api/consultations/` | Consultations (stub) |
+
+---
+
 ## Database
 
 - **Development**: SQLite (auto-created at `artifacts/api-server/db.sqlite3`)
