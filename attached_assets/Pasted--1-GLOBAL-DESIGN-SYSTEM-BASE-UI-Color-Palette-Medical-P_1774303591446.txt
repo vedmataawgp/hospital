@@ -1,0 +1,218 @@
+🎨 1. GLOBAL DESIGN SYSTEM (BASE UI)
+🔷 Color Palette (Medical + Premium)
+Primary: #0A2647 (Deep Blue)
+Secondary: #144272
+Accent: #2C74B3
+Light Background: #F8FAFC
+White: #FFFFFF
+Danger: #E63946
+Success: #2A9D8F
+🔷 Typography
+Font: Inter / Poppins
+
+Heading:
+- H1 → 48px bold
+- H2 → 36px semi-bold
+- H3 → 24px medium
+
+Body:
+- 16px regular
+- 14px secondary text
+🔷 Spacing System
+8px grid system:
+8 / 16 / 24 / 32 / 48 / 64
+🔷 UI Components (Reusable)
+Navbar
+Sidebar (dashboard)
+Cards
+Buttons (Primary, Outline, Danger)
+Input fields
+Modal
+Table
+Loader / Skeleton
+🔷 Visual Style
+Soft shadows
+Rounded corners (12px–16px)
+Glassmorphism for cards (optional)
+Smooth animations (hover + transitions)
+🏠 2. HOME PAGE (Landing Page)
+🔷 Section 1: Hero
+Left:
+Heading: “Advanced Healthcare for Everyone”
+Subtext
+Buttons:
+Book Appointment
+Consult Online
+Right:
+Doctor image
+🔷 Section 2: Quick Services
+
+Cards (icons + text):
+
+Appointment
+Doctors
+Emergency
+Lab Tests
+🔷 Section 3: About
+Hospital intro
+Stats:
+Patients
+Doctors
+Experience
+🔷 Section 4: Departments
+
+Grid cards:
+
+Cardiology
+Neurology
+Pediatrics
+Orthopedics
+🔷 Section 5: Doctors
+Horizontal cards
+Image + name + specialization
+Book button
+🔷 Section 6: Testimonials
+Slider
+Patient reviews
+🔷 Section 7: Emergency Banner
+Red background
+“Call Now” button
+🔷 Section 8: Footer
+Links
+Contact
+Social icons (Bootstrap icons)
+👨‍⚕️ 3. DOCTORS PAGE
+Layout:
+Filter sidebar:
+Specialization
+Experience
+Grid:
+Doctor cards
+Doctor Card:
+Image
+Name
+Experience
+Rating
+Book Appointment button
+🏥 4. DEPARTMENTS PAGE
+Layout:
+Grid of department cards
+Card:
+Icon
+Title
+Description
+View Doctors
+📅 5. APPOINTMENT PAGE
+Step-based UI (Important)
+Step 1: Select Department
+Step 2: Select Doctor
+Step 3: Select Date & Time
+Step 4: Enter Details
+Step 5: Confirm
+UI:
+Progress bar at top
+Calendar picker
+Time slots grid
+🔐 6. AUTH PAGES
+Login Page
+Email
+Password
+Remember me
+Login button
+Register Page
+Name
+Email
+Phone
+Password
+📊 7. PATIENT DASHBOARD
+Layout:
+Sidebar (left)
+Main content (right)
+Sidebar:
+Dashboard
+Appointments
+Reports
+Billing
+Profile
+Dashboard Content:
+Cards:
+Upcoming appointments
+Reports
+Notifications
+Appointments Section:
+Table:
+Doctor
+Date
+Status
+Actions (cancel/view)
+Reports Section:
+Upload button
+File list
+Billing Section:
+Payment history
+Download invoice
+👨‍⚕️ 8. DOCTOR DASHBOARD
+Sections:
+Today's appointments
+Patient list
+Add prescription
+Consultation panel
+UI:
+Calendar view
+Patient cards
+Notes input
+🧑‍💼 9. ADMIN DASHBOARD
+Layout:
+Sidebar + topbar
+Sections:
+Dashboard Overview:
+Total patients
+Revenue
+Appointments
+Charts:
+Line chart (patients)
+Bar chart (revenue)
+Management Panels:
+Manage doctors
+Manage patients
+Manage appointments
+💬 10. ONLINE CONSULTATION PAGE
+Layout:
+
+Split screen:
+
+Left → Chat messages
+Right → Patient details
+Features:
+Chat input
+File upload
+End consultation button
+📞 11. CONTACT PAGE
+Contact form
+Map
+Phone/email info
+⚡ 12. RESPONSIVENESS RULES
+Mobile:
+Stack layout vertically
+Sidebar → collapsible
+Cards → full width
+Tablet:
+2-column grids
+Desktop:
+3–4 column grids
+🚀 13. PERFORMANCE UI RULES
+Lazy load images
+Skeleton loaders
+Avoid heavy animations
+Optimize fonts
+🔐 14. SECURITY UI PRACTICES
+No sensitive data stored in frontend
+Token stored securely (HTTP-only cookies preferred)
+🎯 FINAL UI GOAL
+
+Your UI should feel like:
+
+Clean
+Minimal
+Fast
+Premium (like international healthcare websites)
