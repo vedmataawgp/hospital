@@ -1,59 +1,127 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
+
+const links = [
+  { href: "/", label: "Home" },
+  { href: "/doctors", label: "Doctors" },
+  { href: "/departments", label: "Departments" },
+  { href: "/appointments", label: "Appointments" },
+  { href: "/contact", label: "Contact" },
+];
+
+function MenuIcon({ open }: { open: boolean }) {
+  return (
+    <div className="flex flex-col gap-1.5 w-5 cursor-pointer">
+      <span className={`block h-0.5 bg-white rounded transition-all duration-300 ${open ? "rotate-45 translate-y-2" : ""}`} />
+      <span className={`block h-0.5 bg-white rounded transition-all duration-300 ${open ? "opacity-0" : ""}`} />
+      <span className={`block h-0.5 bg-white rounded transition-all duration-300 ${open ? "-rotate-45 -translate-y-2" : ""}`} />
+    </div>
+  );
+}
 
 export default function Navbar() {
   const [open, setOpen] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+  const pathname = usePathname();
+
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 20);
+    window.addEventListener("scroll", handler);
+    return () => window.removeEventListener("scroll", handler);
+  }, []);
+
+  useEffect(() => { setOpen(false); }, [pathname]);
 
   return (
-    <nav className="sticky top-0 z-50 bg-[#0A2647] shadow-lg">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between h-16 items-center">
-          <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-[#2C74B3] rounded-full flex items-center justify-center">
-              <span className="text-white font-bold text-sm">M</span>
+    <>
+      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+        scrolled
+          ? "bg-[#0A2647]/95 backdrop-blur-md shadow-lg shadow-black/20"
+          : "bg-transparent"
+      }`}>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+
+            {/* Logo */}
+            <Link href="/" className="flex items-center gap-2.5 group">
+              <div className="relative w-8 h-8">
+                <div className="absolute inset-0 bg-[#2C74B3] rounded-lg rotate-45 group-hover:rotate-[60deg] transition-transform duration-300" />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M7 1v12M1 7h12" stroke="white" strokeWidth="2.5" strokeLinecap="round"/>
+                  </svg>
+                </div>
+              </div>
+              <span className="text-white font-bold text-lg tracking-tight">
+                Medi<span className="text-[#4A90D9]">Care</span>
+              </span>
+            </Link>
+
+            {/* Desktop links */}
+            <div className="hidden md:flex items-center gap-8">
+              {links.map(l => (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  className={`nav-link ${pathname === l.href ? "active" : ""}`}
+                >
+                  {l.label}
+                </Link>
+              ))}
             </div>
-            <span className="text-white font-bold text-xl">MediCare</span>
-          </Link>
 
-          <div className="hidden md:flex items-center gap-8">
-            <Link href="/" className="text-blue-200 hover:text-white transition-colors text-sm font-medium">Home</Link>
-            <Link href="/doctors" className="text-blue-200 hover:text-white transition-colors text-sm font-medium">Doctors</Link>
-            <Link href="/departments" className="text-blue-200 hover:text-white transition-colors text-sm font-medium">Departments</Link>
-            <Link href="/appointments" className="text-blue-200 hover:text-white transition-colors text-sm font-medium">Appointments</Link>
-            <Link href="/contact" className="text-blue-200 hover:text-white transition-colors text-sm font-medium">Contact</Link>
-          </div>
+            {/* Desktop CTAs */}
+            <div className="hidden md:flex items-center gap-3">
+              <Link href="/auth/login"
+                className="text-white/80 hover:text-white text-sm font-medium transition-colors px-3 py-1.5">
+                Sign In
+              </Link>
+              <Link href="/appointments"
+                className="btn-shimmer text-white text-sm font-semibold px-5 py-2 rounded-lg">
+                Book Now
+              </Link>
+            </div>
 
-          <div className="hidden md:flex items-center gap-3">
-            <Link href="/auth/login" className="text-white text-sm font-medium px-4 py-2 rounded-xl border border-white/30 hover:border-white transition-all">
-              Login
-            </Link>
-            <Link href="/auth/register" className="bg-[#2C74B3] text-white text-sm font-semibold px-4 py-2 rounded-xl hover:bg-[#144272] transition-all">
-              Register
-            </Link>
-          </div>
-
-          <button onClick={() => setOpen(!open)} className="md:hidden text-white p-2">
-            <div className="w-6 h-0.5 bg-white mb-1.5"></div>
-            <div className="w-6 h-0.5 bg-white mb-1.5"></div>
-            <div className="w-6 h-0.5 bg-white"></div>
-          </button>
-        </div>
-      </div>
-
-      {open && (
-        <div className="md:hidden bg-[#144272] px-4 py-4 flex flex-col gap-4">
-          <Link href="/" className="text-white text-sm font-medium" onClick={() => setOpen(false)}>Home</Link>
-          <Link href="/doctors" className="text-white text-sm font-medium" onClick={() => setOpen(false)}>Doctors</Link>
-          <Link href="/departments" className="text-white text-sm font-medium" onClick={() => setOpen(false)}>Departments</Link>
-          <Link href="/appointments" className="text-white text-sm font-medium" onClick={() => setOpen(false)}>Appointments</Link>
-          <Link href="/contact" className="text-white text-sm font-medium" onClick={() => setOpen(false)}>Contact</Link>
-          <div className="flex gap-3 pt-2">
-            <Link href="/auth/login" className="text-white text-sm font-medium px-4 py-2 rounded-xl border border-white/30 flex-1 text-center" onClick={() => setOpen(false)}>Login</Link>
-            <Link href="/auth/register" className="bg-[#2C74B3] text-white text-sm font-semibold px-4 py-2 rounded-xl flex-1 text-center" onClick={() => setOpen(false)}>Register</Link>
+            {/* Mobile menu toggle */}
+            <button className="md:hidden p-2" onClick={() => setOpen(!open)} aria-label="Toggle menu">
+              <MenuIcon open={open} />
+            </button>
           </div>
         </div>
-      )}
-    </nav>
+
+        {/* Mobile menu */}
+        <div className={`md:hidden overflow-hidden transition-all duration-300 ${
+          open ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+        }`}>
+          <div className="bg-[#0A2647]/98 backdrop-blur-md border-t border-white/10 px-4 py-4 space-y-1">
+            {links.map(l => (
+              <Link key={l.href} href={l.href}
+                className={`block px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                  pathname === l.href
+                    ? "bg-white/10 text-white"
+                    : "text-white/70 hover:text-white hover:bg-white/5"
+                }`}>
+                {l.label}
+              </Link>
+            ))}
+            <div className="flex gap-3 pt-3 border-t border-white/10 mt-2">
+              <Link href="/auth/login"
+                className="flex-1 text-center py-2.5 text-sm text-white/80 border border-white/20 rounded-xl hover:border-white/40 transition-colors">
+                Sign In
+              </Link>
+              <Link href="/appointments"
+                className="flex-1 text-center py-2.5 text-sm text-white font-semibold bg-[#2C74B3] rounded-xl hover:bg-[#144272] transition-colors">
+                Book Now
+              </Link>
+            </div>
+          </div>
+        </div>
+      </nav>
+
+      {/* Spacer for non-hero pages */}
+      {pathname !== "/" && <div className="h-16" />}
+    </>
   );
 }
