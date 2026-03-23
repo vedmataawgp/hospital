@@ -1,0 +1,1495 @@
+openapi: 3.1.0
+info:
+  title: Api
+  version: 1.0.0
+  description: Hospital Management System API
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: auth
+    description: Authentication operations
+  - name: patients
+    description: Patient management
+  - name: doctors
+    description: Doctor management
+  - name: appointments
+    description: Appointment management
+  - name: billing
+    description: Billing management
+  - name: reports
+    description: Medical reports
+  - name: notifications
+    description: Notifications
+  - name: admin
+    description: Admin dashboard
+  - name: consultations
+    description: Online consultations
+
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+
+  # AUTH
+  /auth/login:
+    post:
+      operationId: authLogin
+      tags: [auth]
+      summary: Login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "401":
+          description: Unauthorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /auth/register:
+    post:
+      operationId: authRegister
+      tags: [auth]
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Registered
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+
+  /auth/profile:
+    get:
+      operationId: getProfile
+      tags: [auth]
+      summary: Get current user profile
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Profile data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  # PATIENTS
+  /patients:
+    get:
+      operationId: listPatients
+      tags: [patients]
+      summary: List all patients
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+        - in: query
+          name: search
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of patients
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PatientListResponse"
+    post:
+      operationId: createPatient
+      tags: [patients]
+      summary: Create a new patient
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePatientRequest"
+      responses:
+        "201":
+          description: Patient created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+
+  /patients/{id}:
+    get:
+      operationId: getPatient
+      tags: [patients]
+      summary: Get patient by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Patient details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+    put:
+      operationId: updatePatient
+      tags: [patients]
+      summary: Update patient
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePatientRequest"
+      responses:
+        "200":
+          description: Updated patient
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Patient"
+    delete:
+      operationId: deletePatient
+      tags: [patients]
+      summary: Delete patient
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # DOCTORS
+  /doctors:
+    get:
+      operationId: listDoctors
+      tags: [doctors]
+      summary: List all doctors
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+        - in: query
+          name: specialization
+          schema:
+            type: string
+        - in: query
+          name: search
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of doctors
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DoctorListResponse"
+    post:
+      operationId: createDoctor
+      tags: [doctors]
+      summary: Create a doctor profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDoctorRequest"
+      responses:
+        "201":
+          description: Doctor created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Doctor"
+
+  /doctors/{id}:
+    get:
+      operationId: getDoctor
+      tags: [doctors]
+      summary: Get doctor by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Doctor details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Doctor"
+    put:
+      operationId: updateDoctor
+      tags: [doctors]
+      summary: Update doctor
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateDoctorRequest"
+      responses:
+        "200":
+          description: Updated doctor
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Doctor"
+    delete:
+      operationId: deleteDoctor
+      tags: [doctors]
+      summary: Delete doctor
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # APPOINTMENTS
+  /appointments:
+    get:
+      operationId: listAppointments
+      tags: [appointments]
+      summary: List appointments
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [pending, confirmed, cancelled, completed]
+        - in: query
+          name: doctorId
+          schema:
+            type: integer
+        - in: query
+          name: patientId
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of appointments
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AppointmentListResponse"
+    post:
+      operationId: createAppointment
+      tags: [appointments]
+      summary: Book an appointment
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateAppointmentRequest"
+      responses:
+        "201":
+          description: Appointment booked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+
+  /appointments/{id}:
+    get:
+      operationId: getAppointment
+      tags: [appointments]
+      summary: Get appointment by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Appointment details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+    put:
+      operationId: updateAppointment
+      tags: [appointments]
+      summary: Update appointment
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateAppointmentRequest"
+      responses:
+        "200":
+          description: Updated appointment
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+    delete:
+      operationId: deleteAppointment
+      tags: [appointments]
+      summary: Cancel appointment
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  /appointments/{id}/confirm:
+    post:
+      operationId: confirmAppointment
+      tags: [appointments]
+      summary: Confirm an appointment
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Confirmed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+
+  /appointments/{id}/cancel:
+    post:
+      operationId: cancelAppointment
+      tags: [appointments]
+      summary: Cancel an appointment
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Cancelled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Appointment"
+
+  # BILLING
+  /billing:
+    get:
+      operationId: listBilling
+      tags: [billing]
+      summary: List billing records
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [paid, pending, overdue]
+        - in: query
+          name: patientId
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Billing list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BillingListResponse"
+    post:
+      operationId: createBilling
+      tags: [billing]
+      summary: Create a billing record
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBillingRequest"
+      responses:
+        "201":
+          description: Billing created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Billing"
+
+  /billing/{id}:
+    get:
+      operationId: getBilling
+      tags: [billing]
+      summary: Get billing by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Billing details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Billing"
+
+  /billing/{id}/pay:
+    post:
+      operationId: payBilling
+      tags: [billing]
+      summary: Mark billing as paid
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PayBillingRequest"
+      responses:
+        "200":
+          description: Paid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Billing"
+
+  # REPORTS
+  /reports:
+    get:
+      operationId: listReports
+      tags: [reports]
+      summary: List reports
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+        - in: query
+          name: patientId
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Reports list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReportListResponse"
+    post:
+      operationId: createReport
+      tags: [reports]
+      summary: Create a report
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReportRequest"
+      responses:
+        "201":
+          description: Report created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+
+  /reports/{id}:
+    get:
+      operationId: getReport
+      tags: [reports]
+      summary: Get report by ID
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Report details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+    delete:
+      operationId: deleteReport
+      tags: [reports]
+      summary: Delete report
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+  # NOTIFICATIONS
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [notifications]
+      summary: List notifications
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: Notifications list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationListResponse"
+
+  /notifications/{id}/read:
+    put:
+      operationId: markNotificationRead
+      tags: [notifications]
+      summary: Mark notification as read
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Marked as read
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Notification"
+
+  # ADMIN
+  /admin/dashboard:
+    get:
+      operationId: getAdminDashboard
+      tags: [admin]
+      summary: Get admin dashboard stats
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDashboard"
+
+  /admin/analytics:
+    get:
+      operationId: getAnalytics
+      tags: [admin]
+      summary: Get analytics data
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: period
+          schema:
+            type: string
+            enum: [week, month, year]
+            default: month
+      responses:
+        "200":
+          description: Analytics data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AnalyticsData"
+
+  /admin/users:
+    get:
+      operationId: listUsers
+      tags: [admin]
+      summary: List all users
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+        - in: query
+          name: role
+          schema:
+            type: string
+            enum: [admin, doctor, patient]
+        - in: query
+          name: search
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Users list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserListResponse"
+
+  /admin/users/{id}:
+    put:
+      operationId: updateUser
+      tags: [admin]
+      summary: Update user
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateUserRequest"
+      responses:
+        "200":
+          description: Updated user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+    delete:
+      operationId: deleteUser
+      tags: [admin]
+      summary: Delete user
+      security:
+        - bearerAuth: []
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MessageResponse"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+        - message
+
+    MessageResponse:
+      type: object
+      properties:
+        message:
+          type: string
+      required:
+        - message
+
+    PaginationMeta:
+      type: object
+      properties:
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+        totalPages:
+          type: integer
+      required:
+        - total
+        - page
+        - limit
+        - totalPages
+
+    # AUTH
+    LoginRequest:
+      type: object
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+      required:
+        - email
+        - password
+
+    RegisterRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        role:
+          type: string
+          enum: [admin, doctor, patient]
+      required:
+        - name
+        - email
+        - password
+        - role
+
+    AuthResponse:
+      type: object
+      properties:
+        token:
+          type: string
+        user:
+          $ref: "#/components/schemas/User"
+      required:
+        - token
+        - user
+
+    User:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, doctor, patient]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - email
+        - role
+        - createdAt
+
+    UpdateUserRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, doctor, patient]
+
+    UserListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/User"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+      required:
+        - data
+        - meta
+
+    # PATIENTS
+    Patient:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        age:
+          type: integer
+        gender:
+          type: string
+          enum: [male, female, other]
+        phone:
+          type: string
+        address:
+          type: string
+        bloodGroup:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - name
+        - email
+        - createdAt
+
+    CreatePatientRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        age:
+          type: integer
+        gender:
+          type: string
+          enum: [male, female, other]
+        phone:
+          type: string
+        address:
+          type: string
+        bloodGroup:
+          type: string
+      required:
+        - name
+        - email
+        - password
+
+    PatientListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Patient"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+      required:
+        - data
+        - meta
+
+    # DOCTORS
+    Doctor:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        specialization:
+          type: string
+        experience:
+          type: integer
+        phone:
+          type: string
+        availability:
+          type: string
+        bio:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - name
+        - email
+        - specialization
+        - createdAt
+
+    CreateDoctorRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+        specialization:
+          type: string
+        experience:
+          type: integer
+        phone:
+          type: string
+        availability:
+          type: string
+        bio:
+          type: string
+      required:
+        - name
+        - email
+        - password
+        - specialization
+
+    DoctorListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Doctor"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+      required:
+        - data
+        - meta
+
+    # APPOINTMENTS
+    Appointment:
+      type: object
+      properties:
+        id:
+          type: integer
+        patientId:
+          type: integer
+        doctorId:
+          type: integer
+        patientName:
+          type: string
+        doctorName:
+          type: string
+        doctorSpecialization:
+          type: string
+        date:
+          type: string
+        time:
+          type: string
+        status:
+          type: string
+          enum: [pending, confirmed, cancelled, completed]
+        notes:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - patientId
+        - doctorId
+        - date
+        - time
+        - status
+        - createdAt
+
+    CreateAppointmentRequest:
+      type: object
+      properties:
+        patientId:
+          type: integer
+        doctorId:
+          type: integer
+        date:
+          type: string
+        time:
+          type: string
+        notes:
+          type: string
+      required:
+        - doctorId
+        - date
+        - time
+
+    UpdateAppointmentRequest:
+      type: object
+      properties:
+        date:
+          type: string
+        time:
+          type: string
+        status:
+          type: string
+          enum: [pending, confirmed, cancelled, completed]
+        notes:
+          type: string
+
+    AppointmentListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Appointment"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+      required:
+        - data
+        - meta
+
+    # BILLING
+    Billing:
+      type: object
+      properties:
+        id:
+          type: integer
+        patientId:
+          type: integer
+        patientName:
+          type: string
+        appointmentId:
+          type: integer
+        amount:
+          type: number
+        description:
+          type: string
+        status:
+          type: string
+          enum: [paid, pending, overdue]
+        paymentMethod:
+          type: string
+        paidAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - patientId
+        - amount
+        - status
+        - createdAt
+
+    CreateBillingRequest:
+      type: object
+      properties:
+        patientId:
+          type: integer
+        appointmentId:
+          type: integer
+        amount:
+          type: number
+        description:
+          type: string
+      required:
+        - patientId
+        - amount
+
+    PayBillingRequest:
+      type: object
+      properties:
+        paymentMethod:
+          type: string
+          enum: [cash, card, insurance, bank_transfer]
+      required:
+        - paymentMethod
+
+    BillingListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Billing"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+      required:
+        - data
+        - meta
+
+    # REPORTS
+    Report:
+      type: object
+      properties:
+        id:
+          type: integer
+        patientId:
+          type: integer
+        patientName:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        fileUrl:
+          type: string
+        reportType:
+          type: string
+          enum: [lab, radiology, prescription, discharge, other]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - patientId
+        - title
+        - createdAt
+
+    CreateReportRequest:
+      type: object
+      properties:
+        patientId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+        reportType:
+          type: string
+          enum: [lab, radiology, prescription, discharge, other]
+        fileUrl:
+          type: string
+      required:
+        - patientId
+        - title
+        - reportType
+
+    ReportListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Report"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+      required:
+        - data
+        - meta
+
+    # NOTIFICATIONS
+    Notification:
+      type: object
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        message:
+          type: string
+        type:
+          type: string
+          enum: [appointment, billing, report, system]
+        status:
+          type: string
+          enum: [read, unread]
+        createdAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - userId
+        - message
+        - status
+        - createdAt
+
+    NotificationListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Notification"
+        meta:
+          $ref: "#/components/schemas/PaginationMeta"
+        unreadCount:
+          type: integer
+      required:
+        - data
+        - meta
+        - unreadCount
+
+    # ADMIN
+    AdminDashboard:
+      type: object
+      properties:
+        totalPatients:
+          type: integer
+        totalDoctors:
+          type: integer
+        totalAppointments:
+          type: integer
+        pendingAppointments:
+          type: integer
+        confirmedAppointments:
+          type: integer
+        totalRevenue:
+          type: number
+        pendingBilling:
+          type: number
+        recentAppointments:
+          type: array
+          items:
+            $ref: "#/components/schemas/Appointment"
+        recentPatients:
+          type: array
+          items:
+            $ref: "#/components/schemas/Patient"
+      required:
+        - totalPatients
+        - totalDoctors
+        - totalAppointments
+        - pendingAppointments
+        - confirmedAppointments
+        - totalRevenue
+        - pendingBilling
+        - recentAppointments
+        - recentPatients
+
+    AnalyticsDataPoint:
+      type: object
+      properties:
+        label:
+          type: string
+        appointments:
+          type: integer
+        revenue:
+          type: number
+        patients:
+          type: integer
+      required:
+        - label
+        - appointments
+        - revenue
+        - patients
+
+    AnalyticsData:
+      type: object
+      properties:
+        period:
+          type: string
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/AnalyticsDataPoint"
+        appointmentsByStatus:
+          type: object
+          properties:
+            pending:
+              type: integer
+            confirmed:
+              type: integer
+            cancelled:
+              type: integer
+            completed:
+              type: integer
+          required:
+            - pending
+            - confirmed
+            - cancelled
+            - completed
+        revenueByMonth:
+          type: array
+          items:
+            type: object
+            properties:
+              month:
+                type: string
+              revenue:
+                type: number
+            required:
+              - month
+              - revenue
+      required:
+        - period
+        - data
+        - appointmentsByStatus
+        - revenueByMonth

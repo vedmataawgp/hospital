@@ -1,0 +1,19 @@
+packages:
+  "framer-motion": "Page transitions, glassmorphism entry animations, and micro-interactions"
+  "recharts": "Data visualization for the Admin Dashboard analytics"
+  "date-fns": "Human-readable date formatting for appointments and reports"
+  "clsx": "Utility for constructing className strings conditionally"
+  "tailwind-merge": "Utility to merge tailwind classes without style conflicts"
+  "lucide-react": "Beautiful, consistent icons for the entire UI"
+
+images:
+  - path: "artifacts/hospital/public/images/hero-bg.png"
+    description: "Abstract ultra-clean medical background, soft glassmorphism, subtle light blue and teal gradients, white space, professional and trustworthy, high key lighting"
+    aspect_ratio: "16:9"
+  - path: "artifacts/hospital/public/images/logo.png"
+    description: "Minimalist modern hospital health cross logo mark in deep premium blue, flat vector style on transparent background"
+    aspect_ratio: "1:1"
+
+notes:
+  - "Assuming generated custom-fetch automatically injects the Authorization: Bearer {token} header if token is in localStorage."
+  - "Using generated hooks from @workspace/api-client-react for all data fetching."

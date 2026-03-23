@@ -1,0 +1,33 @@
+kind = "api"
+previewPath = "/api"
+title = "API Server"
+version = "1.0.0"
+id = "3B4_FFSkEVBkAeYMFRJ2e"
+
+[[services]]
+localPort = 8080
+name = "API Server"
+paths = ["/api"]
+
+[services.development]
+run = "bash /home/runner/workspace/artifacts/api-server/start.sh"
+
+[services.production]
+
+[services.production.build]
+args = ["bash", "-c", "cd /home/runner/workspace/artifacts/api-server && python manage.py collectstatic --noinput"]
+
+[services.production.build.env]
+DJANGO_SETTINGS_MODULE = "config.settings"
+PYTHONPATH = "/home/runner/workspace/artifacts/api-server"
+
+[services.production.run]
+args = ["bash", "-c", "cd /home/runner/workspace/artifacts/api-server && python manage.py migrate --run-syncdb && gunicorn config.wsgi:application --bind 0.0.0.0:8080 --workers 2"]
+
+[services.production.run.env]
+PORT = "8080"
+DJANGO_SETTINGS_MODULE = "config.settings"
+PYTHONPATH = "/home/runner/workspace/artifacts/api-server"
+
+[services.production.health.startup]
+path = "/api/healthz"
