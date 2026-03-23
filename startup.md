@@ -11,6 +11,74 @@ MediCare is a full-stack hospital management platform. It is split into two part
 
 ---
 
+## Test Accounts (Pre-seeded)
+
+Three ready-to-use accounts are seeded in the development database. Use these to log in and test every role without registering.
+
+### Admin
+| Field | Value |
+|-------|-------|
+| Email | `admin@medicare.com` |
+| Password | `Admin@1234` |
+| Role | `admin` |
+| Redirects to | `/dashboard/admin` |
+
+### Doctor (Dr. John Smith — Cardiology)
+| Field | Value |
+|-------|-------|
+| Email | `dr.smith@medicare.com` |
+| Password | `Doctor@1234` |
+| Role | `doctor` |
+| Redirects to | `/dashboard/doctor` |
+
+### Patient (Jane Doe)
+| Field | Value |
+|-------|-------|
+| Email | `patient.jane@medicare.com` |
+| Password | `Patient@1234` |
+| Role | `patient` |
+| Redirects to | `/dashboard/patient` |
+
+---
+
+## Frontend Page URLs
+
+All pages are served on **port 5000**. Replace the host with your Replit preview URL in production.
+
+### Public pages
+| URL | Description |
+|-----|-------------|
+| `/` | Home / landing page |
+| `/auth/login` | Login (all roles) |
+| `/auth/register` | Register as patient or doctor |
+| `/doctors` | Browse all doctors |
+| `/departments` | Browse all departments |
+
+### Patient pages (login required — patient role)
+| URL | Description |
+|-----|-------------|
+| `/dashboard/patient` | Patient dashboard — stats, upcoming appointments |
+| `/appointments` | Book a new appointment |
+| `/chat` | Message doctors |
+
+### Doctor pages (login required — doctor role)
+| URL | Description |
+|-----|-------------|
+| `/dashboard/doctor` | Doctor dashboard — patients, appointments, prescriptions |
+| `/chat` | Message patients |
+
+### Admin pages (login required — admin role)
+| URL | Description |
+|-----|-------------|
+| `/dashboard/admin` | Admin dashboard — platform overview, users, analytics |
+
+### Django built-in admin panel
+| URL | Description |
+|-----|-------------|
+| `/api/django-admin/` | Django admin (port 8080) — full DB management |
+
+---
+
 ## Project Structure
 
 ```
