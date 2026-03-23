@@ -1,13 +1,17 @@
 "use client";
 import { useState, useCallback } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import { api } from "@/lib/api";
 import { useMutation } from "@/lib/useApi";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const params = useSearchParams();
+  const defaultRole = params.get("role") === "doctor" ? "doctor" : "patient";
+
+  const [role, setRole] = useState<"patient" | "doctor">(defaultRole);
   const [form, setForm] = useState({ name: "", email: "", phone: "", password: "" });
   const [showPwd, setShowPwd] = useState(false);
   const [agreed, setAgreed] = useState(false);
@@ -16,8 +20,8 @@ export default function RegisterPage() {
     setForm(f => ({ ...f, [k]: e.target.value }));
 
   const registerMutator = useCallback(
-    () => api.auth.register({ ...form, role: "patient" }),
-    [form],
+    () => api.auth.register({ ...form, role }),
+    [form, role],
   );
   const [register, { loading, error }] = useMutation(registerMutator);
 
@@ -25,7 +29,9 @@ export default function RegisterPage() {
     e.preventDefault();
     if (!agreed) return;
     const result = await register();
-    if (result) router.push("/dashboard/patient");
+    if (result) {
+      router.push(role === "doctor" ? "/dashboard/doctor" : "/dashboard/patient");
+    }
   };
 
   const fields = [
@@ -42,12 +48,40 @@ export default function RegisterPage() {
         <div className="w-full max-w-md">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
 
-            <div className="text-center mb-8">
+            <div className="text-center mb-6">
               <div className="w-16 h-16 bg-gradient-to-br from-[#0A2647] to-[#2C74B3] rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <i className="bi bi-person-plus-fill text-white text-2xl" />
               </div>
               <h1 className="text-3xl font-bold text-[#0A2647]">Create Account</h1>
               <p className="text-gray-500 mt-2">Join MediCare for better healthcare</p>
+            </div>
+
+            {/* Role selector */}
+            <div className="flex rounded-xl border-2 border-gray-200 overflow-hidden mb-6">
+              <button
+                type="button"
+                onClick={() => setRole("patient")}
+                className={`flex-1 py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-all ${
+                  role === "patient"
+                    ? "bg-[#2C74B3] text-white"
+                    : "bg-white text-gray-500 hover:bg-gray-50"
+                }`}
+              >
+                <i className="bi bi-person-heart" />
+                I&apos;m a Patient
+              </button>
+              <button
+                type="button"
+                onClick={() => setRole("doctor")}
+                className={`flex-1 py-3 text-sm font-semibold flex items-center justify-center gap-2 transition-all border-l-2 border-gray-200 ${
+                  role === "doctor"
+                    ? "bg-[#0A2647] text-white"
+                    : "bg-white text-gray-500 hover:bg-gray-50"
+                }`}
+              >
+                <i className="bi bi-person-badge-fill" />
+                I&apos;m a Doctor
+              </button>
             </div>
 
             {error && (
@@ -82,6 +116,13 @@ export default function RegisterPage() {
                 </div>
               ))}
 
+              {role === "doctor" && (
+                <div className="p-3 bg-blue-50 rounded-xl flex items-start gap-2 text-sm text-blue-700">
+                  <i className="bi bi-info-circle-fill mt-0.5" />
+                  <span>Doctor accounts are subject to verification by hospital administration before full access is granted.</span>
+                </div>
+              )}
+
               <label className="flex items-start gap-3 cursor-pointer">
                 <input type="checkbox" checked={agreed} onChange={e => setAgreed(e.target.checked)}
                   className="w-4 h-4 rounded accent-[#2C74B3] mt-0.5 flex-shrink-0" />
@@ -100,7 +141,7 @@ export default function RegisterPage() {
               >
                 {loading
                   ? <><i className="bi bi-arrow-repeat animate-spin" /> Creating account...</>
-                  : <><i className="bi bi-person-check-fill" /> Create Account</>}
+                  : <><i className="bi bi-person-check-fill" /> Create {role === "doctor" ? "Doctor" : "Patient"} Account</>}
               </button>
             </form>
 

@@ -143,9 +143,9 @@ export interface ContactPayload {
 export interface RegisterPayload {
   name: string;
   email: string;
-  phone: string;
+  phone?: string;
   password: string;
-  role?: "patient";
+  role?: "patient" | "doctor";
 }
 
 export interface ApiError {

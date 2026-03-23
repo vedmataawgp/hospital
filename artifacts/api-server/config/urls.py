@@ -31,6 +31,8 @@ urlpatterns = [
     path('api/notifications/', include('apps.notifications.urls')),
     # Custom Admin Dashboard API (used by the frontend)
     path('api/admin/', include('apps.admin_dashboard.urls')),
+    # Chat
+    path('api/chat/', include('apps.chat.urls')),
 ]
 
 if settings.DEBUG:

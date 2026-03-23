@@ -10,7 +10,6 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [remember, setRemember] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
 
   const loginMutator = useCallback(
@@ -22,7 +21,12 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const result = await login();
-    if (result) router.push("/dashboard/patient");
+    if (result) {
+      const role = result.user?.role;
+      if (role === "doctor") router.push("/dashboard/doctor");
+      else if (role === "admin") router.push("/dashboard/admin");
+      else router.push("/dashboard/patient");
+    }
   };
 
   return (
@@ -84,19 +88,6 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 cursor-pointer select-none">
-                  <input
-                    type="checkbox"
-                    checked={remember}
-                    onChange={e => setRemember(e.target.checked)}
-                    className="w-4 h-4 rounded accent-[#2C74B3]"
-                  />
-                  <span className="text-sm text-gray-600">Remember me</span>
-                </label>
-                <a href="#" className="text-sm text-[#2C74B3] font-semibold hover:underline">Forgot password?</a>
-              </div>
-
               <button
                 type="submit"
                 disabled={loading}
@@ -108,10 +99,14 @@ export default function LoginPage() {
               </button>
             </form>
 
-            <div className="mt-6 text-center">
+            <div className="mt-6 text-center space-y-2">
               <p className="text-gray-500 text-sm">
                 Don&apos;t have an account?{" "}
                 <Link href="/auth/register" className="text-[#2C74B3] font-semibold hover:underline">Create account</Link>
+              </p>
+              <p className="text-gray-400 text-xs">
+                Sign in as a doctor?{" "}
+                <Link href="/auth/register?role=doctor" className="text-[#2C74B3] font-semibold hover:underline">Register as Doctor</Link>
               </p>
             </div>
 

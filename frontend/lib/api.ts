@@ -10,6 +10,35 @@ const BASE_URL = "/api";
 const REQUEST_TIMEOUT_MS = 15_000;
 const MAX_RETRIES = 3;
 
+/* ── Chat types ──────────────────────────────────────────────────────── */
+export interface UserBrief {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+}
+
+export interface ChatMsg {
+  id: number;
+  sender: number;
+  sender_name: string;
+  sender_role: string;
+  message_type: string;
+  text: string;
+  file_url?: string;
+  file_name?: string;
+  is_read: boolean;
+  created_at: string;
+}
+
+export interface ChatConversation {
+  id: number;
+  other_user: UserBrief;
+  last_message: { text: string; created_at: string; sender_name: string } | null;
+  unread_count: number;
+  updated_at: string;
+}
+
 /* ── Token storage (sessionStorage scoped to tab, cleared on close) ─── */
 const TOKEN_KEY = "mc_access_token";
 
@@ -22,6 +51,22 @@ export const tokenStore = {
   },
   clear: (): void => {
     try { sessionStorage.removeItem(TOKEN_KEY); } catch {}
+  },
+};
+
+const USER_KEY = "mc_user";
+export const userStore = {
+  get: (): UserBrief | null => {
+    try {
+      const raw = sessionStorage.getItem(USER_KEY);
+      return raw ? (JSON.parse(raw) as UserBrief) : null;
+    } catch { return null; }
+  },
+  set: (user: UserBrief): void => {
+    try { sessionStorage.setItem(USER_KEY, JSON.stringify(user)); } catch {}
+  },
+  clear: (): void => {
+    try { sessionStorage.removeItem(USER_KEY); } catch {}
   },
 };
 
@@ -156,6 +201,7 @@ export const api = {
         }),
       }).then((data) => {
         tokenStore.set(data.token);
+        userStore.set(data.user as unknown as UserBrief);
         return data;
       });
     },
@@ -166,21 +212,43 @@ export const api = {
         body: JSON.stringify({
           name: sanitise(payload.name),
           email: sanitise(payload.email),
-          phone: sanitise(payload.phone),
+          phone: sanitise(payload.phone ?? ""),
           password: payload.password,
-          role: "patient",
+          role: payload.role ?? "patient",
         }),
       }).then((data) => {
         tokenStore.set(data.token);
+        userStore.set(data.user);
         return data;
       });
     },
 
     logout() {
       tokenStore.clear();
+      userStore.clear();
     },
 
-    me: () => request<User>("/auth/me/"),
+    me: () => request<User>("/auth/profile/").then((u) => { userStore.set(u); return u; }),
+  },
+
+  /* ── Chat ───────────────────────────────────────────────────── */
+  chat: {
+    conversations: () =>
+      request<ChatConversation[]>("/chat/conversations/"),
+    startConversation: (userId: number) =>
+      request<ChatConversation>("/chat/conversations/start/", {
+        method: "POST",
+        body: JSON.stringify({ user_id: userId }),
+      }),
+    messages: (convoId: number) =>
+      request<ChatMsg[]>(`/chat/conversations/${convoId}/messages/`),
+    send: (convoId: number, text: string, messageType = "text") =>
+      request<ChatMsg>(`/chat/conversations/${convoId}/send/`, {
+        method: "POST",
+        body: JSON.stringify({ text: sanitise(text), message_type: messageType }),
+      }),
+    searchUsers: (query: string, role?: string) =>
+      request<UserBrief[]>(`/chat/users/search/${toQuery({ q: query, role })}`),
   },
 
   /* ── Doctors ────────────────────────────────────────────────── */
