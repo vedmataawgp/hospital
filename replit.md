@@ -79,6 +79,40 @@ Status badge classes: `.badge-confirmed`, `.badge-pending`, `.badge-completed`, 
 
 ---
 
+## WhatsApp-like Consultation Chat (`/chat`)
+
+### Files
+- `frontend/app/chat/page.tsx` — Full chat UI (Client Component)
+- `frontend/lib/chatWebSocket.ts` — WebSocket client class wired to Django Channels
+
+### Features
+- **Two-panel layout**: left conversation list + right chat area (mobile-responsive)
+- **Real-time WebSocket**: connects to `ws(s)://{host}/ws/chat/{roomId}/?token={jwt}` (Django Channels)
+- **Auto-reconnect**: exponential back-off, max 12 attempts, up to 30s delay
+- **Offline simulation**: when Django backend is down, auto-replies simulate doctor responses
+- **Message status**: sending → sent (✓) → delivered (✓✓) → read (✓✓ blue)
+- **Typing indicator**: animated 3-dot bounce, shown when doctor is typing
+- **Reactions**: hover any message to see emoji bar (❤️ 👍 😂 😮 😢 🙏), click to react/un-react
+- **Media sharing**: paperclip button opens file picker, image preview shown before send
+- **Reply-to**: hover message, click Reply → quoted context in next message
+- **Emoji picker**: 20-emoji grid toggles above input
+- **Search**: filters conversation list by name or last message
+- **Online/offline**: green dot indicators + "last seen" text
+- **Unread badges**: green badges with count on conversation list
+- **Unsent queue**: messages queued locally, flushed on WebSocket reconnect
+
+### WebSocket Events (spec from Django side)
+| Event | Direction | Purpose |
+|-------|-----------|---------|
+| SEND_MESSAGE | Client→Server | Send a new message |
+| RECEIVE_MESSAGE | Server→Client | Incoming message |
+| TYPING_START / TYPING_STOP | Both | Typing indicators |
+| MESSAGE_READ | Server→Client | Mark message as read |
+| USER_ONLINE / USER_OFFLINE | Both | Presence |
+| REACTION_ADD | Both | Add emoji reaction |
+
+---
+
 ## Running
 The "Start application" workflow runs `cd frontend && npm run dev` which starts Next.js on port 5000. The Django backend should run separately on port 8080.
 
