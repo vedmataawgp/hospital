@@ -1,0 +1,184 @@
+PROJECT TITLE: Ultra-Premium Hospital Digital Platform (Enterprise UI/UX)
+
+CRITICAL ARCHITECTURE RULES (NON-NEGOTIABLE — FOLLOW STRICTLY):
+
+FRONTEND MUST be built ONLY using Next.js.
+BACKEND MUST be built ONLY using Django + Django REST Framework.
+DO NOT create ANY backend logic in Next.js.
+DO NOT use Next.js API routes.
+DO NOT connect database in Next.js.
+ALL APIs MUST come ONLY from Django.
+
+REPEAT AGAIN:
+BACKEND = DJANGO ONLY
+FRONTEND = NEXT.JS ONLY
+
+PRIMARY OBJECTIVE:
+
+Create a HIGH-END, PREMIUM, GLOBAL-STANDARD hospital website and dashboard system that looks like a BILLION-DOLLAR healthcare brand.
+
+The UI/UX MUST feel:
+
+Ultra modern
+Minimal yet powerful
+Clean and premium
+Highly aesthetic
+Smooth and fluid
+International quality (like top global healthcare platforms)
+
+DESIGN PHILOSOPHY:
+
+Minimalistic but rich
+Clean layouts with strong hierarchy
+White space heavy design
+Subtle but powerful animations
+No clutter, no unnecessary elements
+
+VISUAL STYLE REQUIREMENTS:
+
+Use Tailwind CSS
+Use Bootstrap Icons ONLY (no emojis anywhere)
+Use glassmorphism where appropriate
+Use soft shadows and depth layers
+Use gradient accents (subtle, not flashy)
+Use modern typography (Inter or Poppins)
+
+ANIMATION SYSTEM (VERY IMPORTANT):
+
+ALL animations MUST be:
+
+Smooth
+Soft
+Professional
+Non-distracting
+
+DO NOT use:
+
+Bouncy animations
+Cartoonish effects
+Harsh transitions
+
+USE:
+
+Fade-in transitions
+Smooth slide transitions
+Scale-on-hover (very subtle)
+Parallax scrolling (light)
+Background gradient animations (slow movement)
+Card hover elevation effects
+Smooth scrolling across entire website
+
+ADVANCED UI EFFECTS:
+
+Animated background gradients
+Floating blurred shapes (very subtle)
+Scroll-triggered animations (Framer Motion)
+Sticky navbar with blur effect
+Glass cards with transparency
+Hover glow effects (very minimal)
+Smooth reveal sections on scroll
+
+CARD DESIGN SYSTEM:
+
+ALL cards MUST:
+
+Have rounded corners (12px–16px)
+Use soft shadow
+Have hover animation:
+Slight scale (1.02)
+Elevation shadow
+Include:
+Icon (Bootstrap icons)
+Title
+Short description
+Maintain equal spacing and alignment
+
+LAYOUT EXPERIENCE:
+
+Pixel-perfect spacing
+Grid-based layout system
+Balanced content alignment
+Consistent margins and paddings
+
+PAGES UI REQUIREMENTS:
+
+HOME PAGE:
+
+Full-width hero with animated background
+Strong heading with smooth text animation
+CTA buttons with hover glow
+Animated service cards
+Doctor showcase with sliding animation
+Testimonials with smooth transitions
+Emergency section with strong visual contrast
+
+DOCTORS PAGE:
+
+Filter panel with smooth transitions
+Card grid with hover animation
+Clean, professional layout
+
+APPOINTMENT PAGE:
+
+Step-by-step UI with animated transitions
+Calendar + time slot UI
+Smooth progress indicator
+
+DASHBOARD (PATIENT / DOCTOR / ADMIN):
+
+Sidebar with active highlight animation
+Data cards with hover effect
+Tables with clean UI and spacing
+Charts with smooth loading animations
+
+CONSULTATION PAGE:
+
+Clean chat UI
+Smooth message appearance
+Minimal distractions
+
+RESPONSIVENESS:
+
+Mobile-first design
+Tablet optimized
+Desktop premium layout
+No UI breaking at any screen size
+
+PERFORMANCE REQUIREMENTS:
+
+Lazy loading for images
+Optimized assets
+Fast page transitions
+No heavy animation that slows performance
+
+SEO REQUIREMENTS:
+
+Proper meta tags
+Semantic HTML
+Fast loading speed
+Optimized images
+
+SECURITY & CLEAN STRUCTURE:
+
+No sensitive logic in frontend
+Clean separation of concerns
+API calls handled via service layer only
+
+FINAL EXPECTATION:
+
+The final product MUST look like:
+
+A premium international healthcare platform
+Designed by top UI/UX designers
+Suitable for enterprise-level hospitals
+Clean, smooth, aesthetic, and highly professional
+
+FINAL REMINDER:
+
+DO NOT create backend in Next.js
+DO NOT use Next.js API routes
+ALL backend must be Django
+
+REPEAT:
+BACKEND = DJANGO ONLY
+FRONTEND = NEXT.JS ONLY

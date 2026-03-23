@@ -1,0 +1,289 @@
+PROJECT MODULE: REAL-TIME WHATSAPP-LIKE CONSULTATION SYSTEM
+
+CRITICAL RULES (NON-NEGOTIABLE):
+
+* FRONTEND MUST be built ONLY using Next.js.
+* BACKEND MUST be built ONLY using Django + Django REST Framework.
+* REAL-TIME SYSTEM MUST be handled using Django Channels (WebSockets).
+* DO NOT create any backend logic in Next.js.
+* DO NOT use Next.js API routes.
+* ALL APIs and real-time logic MUST be in Django.
+
+REPEAT:
+BACKEND = DJANGO ONLY
+REAL-TIME = DJANGO CHANNELS
+FRONTEND = NEXT.JS ONLY
+
+---
+
+PRIMARY OBJECTIVE:
+
+Build a REAL-TIME CHAT SYSTEM similar to WhatsApp for doctor-patient consultation with:
+
+* Instant messaging
+* Typing indicators
+* Read receipts
+* Media sharing (images, files)
+* Message reactions
+* Online/offline presence
+* High scalability (1000 doctors + 100,000 users concurrently)
+
+---
+
+TECH STACK (MANDATORY):
+
+FRONTEND:
+
+* Next.js (App Router)
+* Tailwind CSS
+* WebSocket client
+* State management (Zustand or Redux)
+
+BACKEND:
+
+* Django
+* Django REST Framework
+* Django Channels (WebSocket support)
+* Redis (channel layer + caching)
+
+STORAGE:
+
+* PostgreSQL (messages metadata)
+* AWS S3 / Cloud storage (media files)
+
+TASK QUEUE:
+
+* Celery + Redis (notifications, background jobs)
+
+---
+
+CORE FEATURES (WHATSAPP-LIKE):
+
+1. REAL-TIME MESSAGING
+
+* Instant send/receive via WebSocket
+* Messages appear without refresh
+
+2. TYPING INDICATOR
+
+* “Doctor is typing…”
+* Trigger on keypress event
+* Auto-hide after inactivity
+
+3. MESSAGE STATUS
+
+* Sent ✓
+* Delivered ✓✓
+* Read ✓✓ (blue)
+
+4. MEDIA SHARING
+
+* Upload images, reports, PDFs
+* Preview before sending
+* Secure file storage
+
+5. REACTIONS
+
+* React to messages (like WhatsApp)
+* Store reaction type per user
+
+6. ONLINE / OFFLINE STATUS
+
+* Track user connection via WebSocket
+* Show “online” or “last seen”
+
+7. MESSAGE HISTORY
+
+* Load previous messages (pagination)
+* Infinite scroll
+
+8. PUSH NOTIFICATIONS
+
+* When user offline
+* Use background workers
+
+---
+
+DATABASE DESIGN (CHAT CORE):
+
+USERS
+
+* id
+* role (doctor/patient)
+
+CHAT ROOMS
+
+* id
+* doctor_id
+* patient_id
+* created_at
+
+MESSAGES
+
+* id
+* room_id
+* sender_id
+* message_text
+* message_type (text/image/file)
+* file_url
+* status (sent/delivered/read)
+* created_at
+
+REACTIONS
+
+* id
+* message_id
+* user_id
+* reaction_type
+
+---
+
+API ENDPOINTS (DJANGO ONLY):
+
+GET    /api/chat/rooms/
+POST   /api/chat/rooms/
+
+GET    /api/chat/messages/{room_id}/
+POST   /api/chat/messages/
+
+POST   /api/chat/upload-file/
+
+GET    /api/chat/presence/{user_id}/
+
+---
+
+WEBSOCKET ARCHITECTURE:
+
+WebSocket URL:
+ws://yourdomain/ws/chat/{room_id}/
+
+EVENT TYPES:
+
+1. SEND_MESSAGE
+2. RECEIVE_MESSAGE
+3. TYPING_START
+4. TYPING_STOP
+5. MESSAGE_READ
+6. USER_ONLINE
+7. USER_OFFLINE
+8. REACTION_ADD
+
+---
+
+FRONTEND BEHAVIOR (NEXT.JS ONLY):
+
+* Connect to WebSocket on chat open
+* Maintain local state of messages
+* Show:
+
+  * Typing indicator
+  * Message status
+  * Smooth message animations
+
+NO business logic here — only UI + WebSocket communication
+
+---
+
+UI/UX DESIGN REQUIREMENTS:
+
+* WhatsApp-like chat layout
+* Left panel: conversations list
+* Right panel: active chat
+
+CHAT UI:
+
+* Message bubbles (left/right)
+* Smooth fade/slide animations
+* Timestamp display
+* Seen/delivered indicators
+
+INPUT AREA:
+
+* Text input
+* Attach file button
+* Send button
+* Emoji picker (optional)
+
+ANIMATIONS:
+
+* Smooth message entry
+* Typing indicator animation (dots)
+* Hover effects on messages
+
+---
+
+SCALABILITY REQUIREMENTS (VERY IMPORTANT):
+
+System must handle:
+
+* 1000+ doctors
+* 100,000+ patients concurrently
+
+IMPLEMENT:
+
+* Redis for pub/sub messaging
+* Horizontal scaling support
+* Load balancer ready
+* Stateless backend instances
+
+---
+
+PERFORMANCE OPTIMIZATION:
+
+* Use message pagination
+* Limit message payload size
+* Compress WebSocket messages
+* Use caching for active chats
+
+---
+
+SECURITY REQUIREMENTS:
+
+* JWT authentication for WebSocket
+* Validate room access (doctor/patient only)
+* File upload validation
+* Rate limiting (prevent spam)
+* End-to-end encryption (optional advanced)
+
+---
+
+MEDIA HANDLING:
+
+* Upload via Django API
+* Store in S3 or cloud storage
+* Return secure URL
+* Display preview in chat
+
+---
+
+FAIL-SAFE SYSTEM:
+
+* Auto reconnect WebSocket
+* Store unsent messages locally
+* Retry sending if failed
+
+---
+
+FINAL EXPECTATION:
+
+System must feel:
+
+* Instant like WhatsApp
+* Smooth and responsive
+* No lag under heavy load
+* Secure and scalable
+
+---
+
+FINAL REMINDER:
+
+* DO NOT create backend in Next.js
+* DO NOT use Next.js API routes
+* ALL backend + real-time MUST be Django
+
+REPEAT:
+BACKEND = DJANGO ONLY
+REAL-TIME = DJANGO CHANNELS
+FRONTEND = NEXT.JS ONLY
+
+---

@@ -1,16 +1,28 @@
 "use client";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
+import { api } from "@/lib/api";
+import { useMutation } from "@/lib/useApi";
 
 export default function LoginPage() {
+  const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [remember, setRemember] = useState(false);
+  const [showPwd, setShowPwd] = useState(false);
+
+  const loginMutator = useCallback(
+    () => api.auth.login(email, password),
+    [email, password],
+  );
+  const [login, { loading, error }] = useMutation(loginMutator);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    alert("Login feature coming soon! (Backend integration in progress)");
+    const result = await login();
+    if (result) router.push("/dashboard/patient");
   };
 
   return (
@@ -19,41 +31,80 @@ export default function LoginPage() {
       <div className="flex-1 flex items-center justify-center px-4 py-16">
         <div className="w-full max-w-md">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
+
             <div className="text-center mb-8">
-              <div className="w-16 h-16 bg-gradient-to-br from-[#0A2647] to-[#2C74B3] rounded-2xl flex items-center justify-center text-3xl mx-auto mb-4">
-                🔐
+              <div className="w-16 h-16 bg-gradient-to-br from-[#0A2647] to-[#2C74B3] rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <i className="bi bi-shield-lock-fill text-white text-2xl" />
               </div>
               <h1 className="text-3xl font-bold text-[#0A2647]">Welcome Back</h1>
               <p className="text-gray-500 mt-2">Sign in to your MediCare account</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            {error && (
+              <div className="mb-5 p-4 bg-red-50 border border-red-100 rounded-xl text-red-700 text-sm flex items-center gap-2">
+                <i className="bi bi-exclamation-circle-fill text-[#E63946]" />
+                {error}
+              </div>
+            )}
+
+            <form onSubmit={handleSubmit} className="space-y-5" noValidate>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
-                <input type="email" required value={email} onChange={e => setEmail(e.target.value)}
-                  placeholder="john@example.com"
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-[#0A2647] focus:border-[#2C74B3] focus:outline-none transition-colors" />
+                <div className="relative">
+                  <i className="bi bi-envelope absolute left-3.5 top-3.5 text-gray-400" />
+                  <input
+                    type="email"
+                    required
+                    value={email}
+                    onChange={e => setEmail(e.target.value)}
+                    placeholder="john@example.com"
+                    autoComplete="email"
+                    className="w-full border-2 border-gray-200 rounded-xl pl-10 pr-4 py-3 text-[#0A2647] placeholder-gray-400 focus:border-[#2C74B3] focus:outline-none transition-colors"
+                  />
+                </div>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
-                <input type="password" required value={password} onChange={e => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-[#0A2647] focus:border-[#2C74B3] focus:outline-none transition-colors" />
+                <div className="relative">
+                  <i className="bi bi-lock-fill absolute left-3.5 top-3.5 text-gray-400" />
+                  <input
+                    type={showPwd ? "text" : "password"}
+                    required
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    autoComplete="current-password"
+                    className="w-full border-2 border-gray-200 rounded-xl pl-10 pr-10 py-3 text-[#0A2647] placeholder-gray-400 focus:border-[#2C74B3] focus:outline-none transition-colors"
+                  />
+                  <button type="button" onClick={() => setShowPwd(v => !v)}
+                    className="absolute right-3.5 top-3.5 text-gray-400 hover:text-[#2C74B3] transition-colors">
+                    <i className={`bi ${showPwd ? "bi-eye-slash" : "bi-eye"}`} />
+                  </button>
+                </div>
               </div>
 
               <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 cursor-pointer">
-                  <input type="checkbox" checked={remember} onChange={e => setRemember(e.target.checked)}
-                    className="w-4 h-4 rounded accent-[#2C74B3]" />
+                <label className="flex items-center gap-2 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={remember}
+                    onChange={e => setRemember(e.target.checked)}
+                    className="w-4 h-4 rounded accent-[#2C74B3]"
+                  />
                   <span className="text-sm text-gray-600">Remember me</span>
                 </label>
-                <a href="#" className="text-sm text-[#2C74B3] font-medium hover:underline">Forgot password?</a>
+                <a href="#" className="text-sm text-[#2C74B3] font-semibold hover:underline">Forgot password?</a>
               </div>
 
-              <button type="submit"
-                className="w-full bg-[#2C74B3] text-white font-bold py-3.5 rounded-xl hover:bg-[#0A2647] transition-all text-lg">
-                Sign In
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-[#2C74B3] text-white font-bold py-3.5 rounded-xl hover:bg-[#0A2647] transition-all text-lg flex items-center justify-center gap-2 disabled:opacity-60"
+              >
+                {loading
+                  ? <><i className="bi bi-arrow-repeat animate-spin" /> Signing in...</>
+                  : <><i className="bi bi-box-arrow-in-right" /> Sign In</>}
               </button>
             </form>
 
@@ -62,6 +113,11 @@ export default function LoginPage() {
                 Don&apos;t have an account?{" "}
                 <Link href="/auth/register" className="text-[#2C74B3] font-semibold hover:underline">Create account</Link>
               </p>
+            </div>
+
+            <div className="mt-4 p-3 bg-[#F8FAFC] rounded-xl flex items-center gap-2">
+              <i className="bi bi-shield-check text-[#2A9D8F]" />
+              <span className="text-gray-500 text-xs">Your data is secured with 256-bit encryption</span>
             </div>
           </div>
         </div>

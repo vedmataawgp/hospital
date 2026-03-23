@@ -1,7 +1,13 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  allowedDevOrigins: ["*.replit.dev", "*.riker.replit.dev", "*.kirk.replit.dev"],
+  allowedDevOrigins: [
+    "*.replit.dev",
+    "*.riker.replit.dev",
+    "*.kirk.replit.dev",
+    "*.picard.replit.dev",
+    "*.replit.app",
+  ],
   async rewrites() {
     return [
       {

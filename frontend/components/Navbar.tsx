@@ -11,16 +11,6 @@ const links = [
   { href: "/contact", label: "Contact" },
 ];
 
-function MenuIcon({ open }: { open: boolean }) {
-  return (
-    <div className="flex flex-col gap-1.5 w-5 cursor-pointer">
-      <span className={`block h-0.5 bg-white rounded transition-all duration-300 ${open ? "rotate-45 translate-y-2" : ""}`} />
-      <span className={`block h-0.5 bg-white rounded transition-all duration-300 ${open ? "opacity-0" : ""}`} />
-      <span className={`block h-0.5 bg-white rounded transition-all duration-300 ${open ? "-rotate-45 -translate-y-2" : ""}`} />
-    </div>
-  );
-}
-
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
@@ -36,11 +26,13 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? "bg-[#0A2647]/95 backdrop-blur-md shadow-lg shadow-black/20"
-          : "bg-transparent"
-      }`}>
+      <nav
+        className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
+          scrolled
+            ? "bg-[#0A2647]/96 backdrop-blur-md shadow-lg shadow-black/20"
+            : "bg-[#0A2647]/60 backdrop-blur-sm"
+        }`}
+      >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
 
@@ -74,45 +66,65 @@ export default function Navbar() {
 
             {/* Desktop CTAs */}
             <div className="hidden md:flex items-center gap-3">
-              <Link href="/auth/login"
-                className="text-white/80 hover:text-white text-sm font-medium transition-colors px-3 py-1.5">
+              <Link
+                href="/auth/login"
+                className="text-white/90 hover:text-white text-sm font-medium transition-colors px-3 py-1.5"
+              >
                 Sign In
               </Link>
-              <Link href="/appointments"
-                className="btn-shimmer text-white text-sm font-semibold px-5 py-2 rounded-lg">
+              <Link
+                href="/appointments"
+                className="btn-shimmer text-white text-sm font-semibold px-5 py-2 rounded-lg"
+              >
                 Book Now
               </Link>
             </div>
 
-            {/* Mobile menu toggle */}
-            <button className="md:hidden p-2" onClick={() => setOpen(!open)} aria-label="Toggle menu">
-              <MenuIcon open={open} />
+            {/* Mobile toggle */}
+            <button
+              className="md:hidden p-2 text-white"
+              onClick={() => setOpen(!open)}
+              aria-label="Toggle menu"
+              aria-expanded={open}
+            >
+              {open
+                ? <i className="bi bi-x-lg text-xl" />
+                : <i className="bi bi-list text-2xl" />}
             </button>
           </div>
         </div>
 
         {/* Mobile menu */}
-        <div className={`md:hidden overflow-hidden transition-all duration-300 ${
-          open ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
-        }`}>
+        <div
+          className={`md:hidden overflow-hidden transition-all duration-300 ${
+            open ? "max-h-96 opacity-100" : "max-h-0 opacity-0"
+          }`}
+        >
           <div className="bg-[#0A2647]/98 backdrop-blur-md border-t border-white/10 px-4 py-4 space-y-1">
             {links.map(l => (
-              <Link key={l.href} href={l.href}
+              <Link
+                key={l.href}
+                href={l.href}
                 className={`block px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                   pathname === l.href
                     ? "bg-white/10 text-white"
-                    : "text-white/70 hover:text-white hover:bg-white/5"
-                }`}>
+                    : "text-white/80 hover:text-white hover:bg-white/5"
+                }`}
+              >
                 {l.label}
               </Link>
             ))}
             <div className="flex gap-3 pt-3 border-t border-white/10 mt-2">
-              <Link href="/auth/login"
-                className="flex-1 text-center py-2.5 text-sm text-white/80 border border-white/20 rounded-xl hover:border-white/40 transition-colors">
+              <Link
+                href="/auth/login"
+                className="flex-1 text-center py-2.5 text-sm text-white/90 border border-white/25 rounded-xl hover:border-white/50 transition-colors"
+              >
                 Sign In
               </Link>
-              <Link href="/appointments"
-                className="flex-1 text-center py-2.5 text-sm text-white font-semibold bg-[#2C74B3] rounded-xl hover:bg-[#144272] transition-colors">
+              <Link
+                href="/appointments"
+                className="flex-1 text-center py-2.5 text-sm text-white font-semibold bg-[#2C74B3] rounded-xl hover:bg-[#144272] transition-colors"
+              >
                 Book Now
               </Link>
             </div>
