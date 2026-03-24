@@ -52,3 +52,8 @@ externalPort = 80
 [[ports]]
 localPort = 8080
 externalPort = 8080
+
+[userenv]
+
+[userenv.shared]
+DJANGO_SECRET_KEY = "7aTTdpNaIKzM34t3wsBYLV7M3j3frfVlSuZGXFCXKDFoZEWFVKCOT4L5S9VRVnxO7yk"
