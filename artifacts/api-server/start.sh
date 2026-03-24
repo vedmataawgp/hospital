@@ -9,5 +9,27 @@ export PYTHONPATH=/home/runner/workspace/artifacts/api-server
 echo "Running Django migrations..."
 uv run python manage.py migrate --no-input
 
-echo "Starting Django server on port ${PORT:-8080}..."
-exec uv run python manage.py runserver --nothreading 0.0.0.0:${PORT:-8080}
+echo "Collecting static files..."
+uv run python manage.py collectstatic --no-input --clear 2>/dev/null || true
+
+WORKERS=${GUNICORN_WORKERS:-2}
+PORT=${PORT:-8080}
+
+if uv run python -c "import gunicorn" 2>/dev/null; then
+    echo "Starting Gunicorn with $WORKERS workers on port $PORT..."
+    exec uv run gunicorn config.wsgi:application \
+        --bind "0.0.0.0:$PORT" \
+        --workers "$WORKERS" \
+        --threads 4 \
+        --worker-class gthread \
+        --timeout 30 \
+        --keep-alive 5 \
+        --max-requests 1000 \
+        --max-requests-jitter 100 \
+        --access-logfile - \
+        --error-logfile - \
+        --log-level warning
+else
+    echo "Gunicorn not found, falling back to Django dev server on port $PORT..."
+    exec uv run python manage.py runserver 0.0.0.0:$PORT
+fi

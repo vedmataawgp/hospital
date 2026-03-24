@@ -6,12 +6,13 @@ from .models import Patient
 from .serializers import PatientSerializer, CreatePatientSerializer
 from apps.accounts.models import User
 from core.pagination import StandardResultsSetPagination
+from core.permissions import IsAdmin, IsAdminOrDoctor
 from django.db.models import Q
 
 
 # ── Admin/staff: patient list / create ────────────────────────────────────────
 @api_view(['GET', 'POST'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminOrDoctor])
 def patient_list(request):
     if request.method == 'GET':
         search = request.query_params.get('search', '')
@@ -21,6 +22,9 @@ def patient_list(request):
         paginator = StandardResultsSetPagination()
         page = paginator.paginate_queryset(qs, request)
         return paginator.get_paginated_response(PatientSerializer(page, many=True).data)
+
+    if request.user.role != 'admin':
+        return Response({'error': 'Forbidden', 'message': 'Only admins can create patients.'}, status=403)
 
     serializer = CreatePatientSerializer(data=request.data)
     if not serializer.is_valid():
@@ -39,7 +43,7 @@ def patient_list(request):
 
 
 @api_view(['GET', 'PUT', 'DELETE'])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAdminOrDoctor])
 def patient_detail(request, pk):
     try:
         patient = Patient.objects.select_related('user').get(pk=pk)
@@ -48,6 +52,9 @@ def patient_detail(request, pk):
 
     if request.method == 'GET':
         return Response(PatientSerializer(patient).data)
+
+    if request.user.role != 'admin':
+        return Response({'error': 'Forbidden', 'message': 'Only admins can modify patients.'}, status=403)
 
     if request.method == 'PUT':
         data = request.data

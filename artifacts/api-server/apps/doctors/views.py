@@ -6,6 +6,7 @@ from .models import Doctor
 from .serializers import DoctorSerializer, CreateDoctorSerializer
 from apps.accounts.models import User
 from core.pagination import StandardResultsSetPagination
+from core.permissions import IsAdmin, IsAdminOrDoctor
 from django.db.models import Q
 
 # Static department catalogue
@@ -21,7 +22,7 @@ DEPARTMENTS = [
 ]
 
 
-# ── Public: Doctor list / create ───────────────────────────────────────────────
+# ── Public: Doctor list / Admin: create ───────────────────────────────────────
 @api_view(['GET', 'POST'])
 @permission_classes([AllowAny])
 def doctor_list(request):
@@ -37,8 +38,11 @@ def doctor_list(request):
         page = paginator.paginate_queryset(qs, request)
         return paginator.get_paginated_response(DoctorSerializer(page, many=True).data)
 
-    if not request.user.is_authenticated:
+    if not request.user or not request.user.is_authenticated:
         return Response({'error': 'Unauthorized'}, status=401)
+    if request.user.role != 'admin':
+        return Response({'error': 'Forbidden', 'message': 'Only admins can create doctors.'}, status=403)
+
     serializer = CreateDoctorSerializer(data=request.data)
     if not serializer.is_valid():
         return Response({'error': 'Bad Request', 'message': str(serializer.errors)}, status=400)
@@ -63,8 +67,10 @@ def doctor_detail(request, pk):
     if request.method == 'GET':
         return Response(DoctorSerializer(doctor).data)
 
-    if not request.user.is_authenticated:
+    if not request.user or not request.user.is_authenticated:
         return Response({'error': 'Unauthorized'}, status=401)
+    if request.user.role != 'admin':
+        return Response({'error': 'Forbidden', 'message': 'Only admins can modify doctors.'}, status=403)
 
     if request.method == 'PUT':
         data = request.data
