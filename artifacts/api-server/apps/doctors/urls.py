@@ -2,8 +2,9 @@ from django.urls import path
 from . import views
 
 urlpatterns = [
-    # Public doctor endpoints
     path('', views.doctor_list, name='doctor-list'),
     path('<int:pk>/', views.doctor_detail, name='doctor-detail'),
     path('<int:pk>/availability/', views.doctor_availability, name='doctor-availability'),
+    path('<int:pk>/schedule/', views.doctor_schedule, name='doctor-schedule'),
+    path('<int:pk>/patients/', views.doctor_patients, name='doctor-patients'),
 ]

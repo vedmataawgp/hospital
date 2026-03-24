@@ -268,7 +268,8 @@ export const api = {
 
   /* ── Appointments ────────────────────────────────────────────── */
   appointments: {
-    list: () => request<Appointment[]>("/appointments/"),
+    list: (filters?: Record<string, string>) =>
+      request<Appointment[]>(`/appointments/${toQuery(filters as Record<string, unknown>)}`),
     create: (payload: CreateAppointmentPayload) =>
       request<Appointment>("/appointments/", {
         method: "POST",
@@ -341,6 +342,50 @@ export const api = {
       }),
     removeDoctor: (id: number) =>
       request<void>(`/admin/doctors/${id}/`, { method: "DELETE" }),
+  },
+
+  /* ── Prescriptions ───────────────────────────────────────────── */
+  prescriptions: {
+    list: (filters?: Record<string, unknown>) =>
+      request<Prescription[]>(`/appointments/prescriptions/${toQuery(filters)}`),
+    create: (payload: Record<string, unknown>) =>
+      request<Prescription>("/appointments/prescriptions/", {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    update: (id: number, payload: Record<string, unknown>) =>
+      request<Prescription>(`/appointments/prescriptions/${id}/`, {
+        method: "PATCH",
+        body: JSON.stringify(payload),
+      }),
+    delete: (id: number) =>
+      request<void>(`/appointments/prescriptions/${id}/`, { method: "DELETE" }),
+  },
+
+  /* ── Doctor schedule ─────────────────────────────────────────── */
+  schedule: {
+    get: (doctorId: number) =>
+      request<unknown[]>(`/doctors/${doctorId}/schedule/`),
+    save: (doctorId: number, payload: Record<string, unknown>) =>
+      request<unknown>(`/doctors/${doctorId}/schedule/`, {
+        method: "POST",
+        body: JSON.stringify(payload),
+      }),
+    availability: (doctorId: number, date: string) =>
+      request<{ date: string; slots: { time: string; available: boolean }[] }>(
+        `/doctors/${doctorId}/availability/?date=${encodeURIComponent(date)}`
+      ),
+  },
+
+  /* ── File upload ─────────────────────────────────────────────── */
+  upload: (file: File) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request<{ url: string; name: string; size: number; type: string }>("/upload/", {
+      method: "POST",
+      body: form,
+      headers: {},
+    });
   },
 
   /* ── Contact ─────────────────────────────────────────────────── */

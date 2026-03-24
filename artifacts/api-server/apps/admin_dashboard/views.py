@@ -1,4 +1,3 @@
-import random
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
 from apps.patients.models import Patient
@@ -63,15 +62,53 @@ def analytics(request):
     else:
         labels = months[:6]
 
-    data = [{'label': l, 'appointments': random.randint(10, 60), 'revenue': random.randint(1000, 8000), 'patients': random.randint(5, 25)} for l in labels]
-    pending = Appointment.objects.filter(status='pending').count()
-    confirmed = Appointment.objects.filter(status='confirmed').count()
-    cancelled = Appointment.objects.filter(status='cancelled').count()
-    completed = Appointment.objects.filter(status='completed').count()
+    from django.db.models.functions import TruncMonth, TruncWeek, TruncDay, ExtractWeekDay
+    from django.utils import timezone
+    import datetime
+
+    now = timezone.now()
+    pending_count = Appointment.objects.filter(status='pending').count()
+    confirmed_count = Appointment.objects.filter(status='confirmed').count()
+    cancelled_count = Appointment.objects.filter(status='cancelled').count()
+    completed_count = Appointment.objects.filter(status='completed').count()
+
+    if period == 'week':
+        start = now - datetime.timedelta(days=6)
+        data = []
+        for i in range(7):
+            day = (start + datetime.timedelta(days=i))
+            lbl = day.strftime('%a')
+            appt_count = Appointment.objects.filter(
+                created_at__date=day.date()).count()
+            rev = Billing.objects.filter(status='paid', paid_at__date=day.date()).aggregate(total=Sum('amount'))['total'] or 0
+            pat_count = Appointment.objects.filter(created_at__date=day.date()).values('patient').distinct().count()
+            data.append({'label': lbl, 'appointments': appt_count, 'revenue': float(rev), 'patients': pat_count})
+    elif period == 'year':
+        data = []
+        for i, lbl in enumerate(months):
+            month_num = i + 1
+            appt_count = Appointment.objects.filter(created_at__month=month_num, created_at__year=now.year).count()
+            rev = Billing.objects.filter(status='paid', paid_at__month=month_num, paid_at__year=now.year).aggregate(total=Sum('amount'))['total'] or 0
+            pat_count = Appointment.objects.filter(created_at__month=month_num, created_at__year=now.year).values('patient').distinct().count()
+            data.append({'label': lbl, 'appointments': appt_count, 'revenue': float(rev), 'patients': pat_count})
+    else:
+        data = []
+        for i, lbl in enumerate(months[:6]):
+            month_num = i + 1
+            appt_count = Appointment.objects.filter(created_at__month=month_num, created_at__year=now.year).count()
+            rev = Billing.objects.filter(status='paid', paid_at__month=month_num, paid_at__year=now.year).aggregate(total=Sum('amount'))['total'] or 0
+            pat_count = Appointment.objects.filter(created_at__month=month_num, created_at__year=now.year).values('patient').distinct().count()
+            data.append({'label': lbl, 'appointments': appt_count, 'revenue': float(rev), 'patients': pat_count})
+
+    revenue_by_month = []
+    for i, m in enumerate(months):
+        rev = Billing.objects.filter(status='paid', paid_at__month=i+1, paid_at__year=now.year).aggregate(total=Sum('amount'))['total'] or 0
+        revenue_by_month.append({'month': m, 'revenue': float(rev)})
+
     return Response({
         'period': period, 'data': data,
-        'appointmentsByStatus': {'pending': pending, 'confirmed': confirmed, 'cancelled': cancelled, 'completed': completed},
-        'revenueByMonth': [{'month': m, 'revenue': random.randint(2000, 12000)} for m in months],
+        'appointmentsByStatus': {'pending': pending_count, 'confirmed': confirmed_count, 'cancelled': cancelled_count, 'completed': completed_count},
+        'revenueByMonth': revenue_by_month,
     })
 
 

@@ -5,10 +5,20 @@ from .models import User
 
 
 class UserSerializer(serializers.ModelSerializer):
+    avatar_url = serializers.SerializerMethodField()
+
     class Meta:
         model = User
-        fields = ['id', 'name', 'email', 'role', 'created_at']
+        fields = ['id', 'name', 'email', 'role', 'avatar_url', 'created_at']
         read_only_fields = ['id', 'created_at']
+
+    def get_avatar_url(self, obj):
+        if obj.avatar:
+            request = self.context.get('request')
+            if request:
+                return request.build_absolute_uri(obj.avatar.url)
+            return obj.avatar.url
+        return None
 
 
 class RegisterSerializer(serializers.Serializer):

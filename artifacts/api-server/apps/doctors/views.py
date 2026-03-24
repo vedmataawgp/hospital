@@ -88,14 +88,139 @@ def doctor_detail(request, pk):
 @permission_classes([AllowAny])
 def doctor_availability(request, pk):
     try:
-        Doctor.objects.get(pk=pk)
+        doctor = Doctor.objects.get(pk=pk)
     except Doctor.DoesNotExist:
         return Response({'error': 'Not Found'}, status=404)
+
+    date_str = request.query_params.get('date')
+    if date_str:
+        import datetime
+        from apps.appointments.models import Appointment
+        try:
+            target_date = datetime.date.fromisoformat(date_str)
+        except ValueError:
+            return Response({'error': 'Invalid date format. Use YYYY-MM-DD.'}, status=400)
+
+        day_of_week = target_date.weekday()
+        from .models import DoctorSchedule
+        try:
+            schedule = DoctorSchedule.objects.get(doctor=doctor, day_of_week=day_of_week, is_available=True)
+            all_slots = schedule.generate_slots()
+        except DoctorSchedule.DoesNotExist:
+            all_slots = [
+                "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
+                "11:00 AM", "11:30 AM", "02:00 PM", "02:30 PM",
+                "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM",
+            ]
+
+        booked = set(Appointment.objects.filter(
+            doctor=doctor, date=date_str, status__in=['pending', 'confirmed']
+        ).values_list('time', flat=True))
+        slots = [{'time': s, 'available': s not in booked} for s in all_slots]
+        return Response({'date': date_str, 'slots': slots})
+
     return Response({'slots': [
         "09:00 AM", "09:30 AM", "10:00 AM", "10:30 AM",
         "11:00 AM", "11:30 AM", "02:00 PM", "02:30 PM",
         "03:00 PM", "03:30 PM", "04:00 PM", "04:30 PM",
     ]})
+
+
+@api_view(['GET', 'POST', 'PUT', 'DELETE'])
+@permission_classes([IsAuthenticated])
+def doctor_schedule(request, pk):
+    try:
+        doctor = Doctor.objects.get(pk=pk)
+    except Doctor.DoesNotExist:
+        return Response({'error': 'Not Found'}, status=404)
+
+    if request.user.role not in ('admin', 'doctor'):
+        return Response({'error': 'Forbidden'}, status=403)
+    if request.user.role == 'doctor':
+        try:
+            if Doctor.objects.get(user=request.user) != doctor:
+                return Response({'error': 'Forbidden', 'message': 'You can only manage your own schedule.'}, status=403)
+        except Doctor.DoesNotExist:
+            return Response({'error': 'Forbidden'}, status=403)
+
+    from .models import DoctorSchedule, DAYS_OF_WEEK
+
+    if request.method == 'GET':
+        schedules = DoctorSchedule.objects.filter(doctor=doctor)
+        return Response([{
+            'id': s.id,
+            'day_of_week': s.day_of_week,
+            'day_name': dict(DAYS_OF_WEEK)[s.day_of_week],
+            'start_time': s.start_time.strftime('%H:%M'),
+            'end_time': s.end_time.strftime('%H:%M'),
+            'slot_duration_minutes': s.slot_duration_minutes,
+            'is_available': s.is_available,
+        } for s in schedules])
+
+    if request.method == 'POST':
+        day = request.data.get('day_of_week')
+        start = request.data.get('start_time')
+        end = request.data.get('end_time')
+        if day is None or not start or not end:
+            return Response({'error': 'day_of_week, start_time, end_time required'}, status=400)
+        s, _ = DoctorSchedule.objects.update_or_create(
+            doctor=doctor, day_of_week=day,
+            defaults={
+                'start_time': start, 'end_time': end,
+                'slot_duration_minutes': request.data.get('slot_duration_minutes', 30),
+                'is_available': request.data.get('is_available', True),
+            }
+        )
+        return Response({'id': s.id, 'day_of_week': s.day_of_week, 'day_name': dict(DAYS_OF_WEEK)[s.day_of_week], 'start_time': s.start_time.strftime('%H:%M'), 'end_time': s.end_time.strftime('%H:%M'), 'slot_duration_minutes': s.slot_duration_minutes, 'is_available': s.is_available}, status=201)
+
+    return Response({'error': 'Method not allowed'}, status=405)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def doctor_patients(request, pk):
+    try:
+        doctor = Doctor.objects.get(pk=pk)
+    except Doctor.DoesNotExist:
+        return Response({'error': 'Not Found'}, status=404)
+
+    if request.user.role == 'doctor':
+        try:
+            if Doctor.objects.get(user=request.user) != doctor:
+                return Response({'error': 'Forbidden'}, status=403)
+        except Doctor.DoesNotExist:
+            return Response({'error': 'Forbidden'}, status=403)
+    elif request.user.role not in ('admin',):
+        return Response({'error': 'Forbidden'}, status=403)
+
+    from apps.appointments.models import Appointment
+    from apps.patients.models import Patient
+    from apps.patients.serializers import PatientSerializer
+    from apps.reports.models import Report
+    from apps.reports.serializers import ReportSerializer
+
+    patient_id = request.query_params.get('patientId')
+    if patient_id:
+        try:
+            patient = Patient.objects.select_related('user').get(pk=patient_id)
+        except Patient.DoesNotExist:
+            return Response({'error': 'Not Found'}, status=404)
+        appts = Appointment.objects.filter(doctor=doctor, patient=patient).order_by('-created_at')
+        reports = Report.objects.filter(patient=patient).order_by('-created_at')
+        from apps.billing.models import Billing
+        from apps.billing.serializers import BillingSerializer
+        from apps.appointments.serializers import AppointmentSerializer
+        bills = Billing.objects.filter(patient=patient).order_by('-created_at')
+        return Response({
+            'patient': PatientSerializer(patient).data,
+            'appointments': AppointmentSerializer(appts, many=True).data,
+            'reports': ReportSerializer(reports, many=True).data,
+            'billing': BillingSerializer(bills, many=True).data,
+        })
+
+    patient_ids = Appointment.objects.filter(doctor=doctor).values_list('patient_id', flat=True).distinct()
+    patients = Patient.objects.filter(id__in=patient_ids).select_related('user')
+    return Response(PatientSerializer(patients, many=True).data)
 
 
 # ── Departments (static catalogue, doctor count from DB) ───────────────────────

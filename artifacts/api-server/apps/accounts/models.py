@@ -28,8 +28,11 @@ class User(AbstractBaseUser, PermissionsMixin):
     name = models.CharField(max_length=255)
     email = models.EmailField(unique=True, db_index=True)
     role = models.CharField(max_length=10, choices=ROLE_CHOICES, default='patient')
+    avatar = models.ImageField(upload_to='avatars/', null=True, blank=True)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
+    password_reset_token = models.CharField(max_length=128, null=True, blank=True)
+    password_reset_expires = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
 
     USERNAME_FIELD = 'email'

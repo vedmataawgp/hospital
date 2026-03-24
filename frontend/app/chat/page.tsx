@@ -27,14 +27,7 @@ function initials(name: string) {
 }
 
 const REACTION_EMOJIS = ["❤️", "👍", "😂", "😮", "😢", "🙏"];
-const DEMO_REPLIES = [
-  "Thank you for your message. I'll look into this right away.",
-  "That's noted. Please continue with the prescribed treatment.",
-  "Can you provide more details about your symptoms?",
-  "I've reviewed your case. Let's schedule a follow-up visit.",
-  "Please don't worry. This is quite common and treatable.",
-  "I'll be available for a call this afternoon if you need.",
-];
+const POLL_INTERVAL_MS = 3000;
 
 interface LocalMessage {
   tempId: string;
@@ -117,7 +110,8 @@ export default function ChatPage() {
   const [searchLoading, setSearchLoading] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const autoReplyRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastMsgIdRef = useRef<number>(0);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const activeConvo = useMemo(() => convos.find(c => c.id === activeConvoId) ?? null, [convos, activeConvoId]);
@@ -143,6 +137,7 @@ export default function ChatPage() {
     if (!activeConvoId || !isLoggedIn) return;
     setLoadingMsgs(true);
     setMessages([]);
+    lastMsgIdRef.current = 0;
     api.chat.messages(activeConvoId)
       .then(data => {
         const local: LocalMessage[] = data.map(m => ({
@@ -159,10 +154,54 @@ export default function ChatPage() {
         }));
         setMessages(local);
         setReactions({});
+        if (data.length > 0) lastMsgIdRef.current = Math.max(...data.map(m => m.id));
       })
       .catch(() => {})
       .finally(() => setLoadingMsgs(false));
   }, [activeConvoId, isLoggedIn]);
+
+  /* ── Real-time polling for new messages ───────────────── */
+  useEffect(() => {
+    if (pollRef.current) clearInterval(pollRef.current);
+    if (!activeConvoId || !isLoggedIn || !currentUser) return;
+
+    pollRef.current = setInterval(async () => {
+      try {
+        const data = await api.chat.messages(activeConvoId);
+        if (!data.length) return;
+        const maxId = Math.max(...data.map(m => m.id));
+        if (maxId <= lastMsgIdRef.current) return;
+        const newMsgs = data.filter(m => m.id > lastMsgIdRef.current && m.sender !== currentUser.id);
+        if (newMsgs.length === 0) return;
+        lastMsgIdRef.current = maxId;
+        setMessages(prev => {
+          const existingIds = new Set(prev.map(m => m.serverId).filter(Boolean));
+          const toAdd: LocalMessage[] = newMsgs
+            .filter(m => !existingIds.has(m.id))
+            .map(m => ({
+              tempId: String(m.id),
+              serverId: m.id,
+              sender_id: m.sender,
+              sender_name: m.sender_name,
+              sender_role: m.sender_role,
+              text: m.text,
+              message_type: m.message_type,
+              time: m.created_at,
+              status: "delivered" as const,
+              reactions: [],
+            }));
+          return toAdd.length ? [...prev, ...toAdd] : prev;
+        });
+        setConvos(prev => prev.map(c =>
+          c.id === activeConvoId
+            ? { ...c, updated_at: newMsgs[newMsgs.length - 1].created_at }
+            : c
+        ));
+      } catch { /* ignore polling errors */ }
+    }, POLL_INTERVAL_MS);
+
+    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+  }, [activeConvoId, isLoggedIn, currentUser]);
 
   /* ── Auto-scroll ─────────────────────────────────────── */
   useEffect(() => {
@@ -242,26 +281,7 @@ export default function ChatPage() {
       setMessages(prev => prev.map(m => m.tempId === tempId ? { ...m, status: "sending" } : m));
     }
 
-    /* Simulate reply from other side (demo mode) */
-    if (autoReplyRef.current) clearTimeout(autoReplyRef.current);
-    setOtherTyping(true);
-    autoReplyRef.current = setTimeout(() => {
-      setOtherTyping(false);
-      const reply = DEMO_REPLIES[Math.floor(Math.random() * DEMO_REPLIES.length)];
-      const replyMsg: LocalMessage = {
-        tempId: `demo-${Date.now()}`,
-        sender_id: -1,
-        sender_name: activeConvo?.other_user?.name ?? "Dr. System",
-        sender_role: activeConvo?.other_user?.role ?? "doctor",
-        text: reply,
-        message_type: "text",
-        time: new Date().toISOString(),
-        status: "delivered",
-        reactions: [],
-      };
-      setMessages(prev => [...prev, replyMsg]);
-    }, 1500 + Math.random() * 1500);
-  }, [input, activeConvoId, currentUser, replyTo, activeConvo]);
+  }, [input, activeConvoId, currentUser, replyTo]);
 
   /* ── Toggle reaction ──────────────────────────────────── */
   const toggleReaction = (msgKey: string, emoji: string) => {

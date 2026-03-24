@@ -69,6 +69,12 @@ urlpatterns = [
 
     # Chat
     path('api/chat/', include('apps.chat.urls')),
+
+    # Prescriptions (also accessible via /api/appointments/prescriptions/)
+    path('api/prescriptions/', __import__('apps.appointments.views', fromlist=['prescription_list']).prescription_list, name='prescription-list-root'),
+
+    # File upload
+    path('api/upload/', __import__('core.views', fromlist=['upload_file']).upload_file, name='file-upload'),
 ]
 
 if settings.DEBUG:
