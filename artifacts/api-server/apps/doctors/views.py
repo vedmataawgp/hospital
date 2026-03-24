@@ -289,36 +289,55 @@ def doctor_portal_patients(request):
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def doctor_portal_prescriptions(request):
-    from apps.notifications.models import Notification
+    from apps.appointments.models import Prescription
+    from apps.appointments.serializers import PrescriptionSerializer
 
     try:
-        Doctor.objects.get(user=request.user)
+        doctor = Doctor.objects.get(user=request.user)
     except Doctor.DoesNotExist:
         return Response({'error': 'Doctor profile not found'}, status=404)
 
-    PREFIX = 'PRESCRIPTION|'
-
     if request.method == 'GET':
-        notes = Notification.objects.filter(
-            user=request.user, type='system', message__startswith=PREFIX
-        ).order_by('-created_at')[:20]
-        result = []
-        for n in notes:
-            try:
-                _, patient_name, rx_notes = n.message.split('|', 2)
-            except ValueError:
-                patient_name, rx_notes = '', n.message
-            result.append({'id': n.id, 'patient_name': patient_name, 'notes': rx_notes, 'created_at': n.created_at})
-        return Response(result)
+        prescriptions = Prescription.objects.filter(doctor=doctor).select_related(
+            'patient__user', 'appointment'
+        ).order_by('-created_at')[:50]
+        return Response(PrescriptionSerializer(prescriptions, many=True).data)
 
-    patient_name = request.data.get('patient_name', '').strip()
-    notes_text   = request.data.get('notes', '').strip()
-    if not patient_name:
-        return Response({'error': 'patient_name required'}, status=400)
+    from apps.patients.models import Patient
+    patient_id = request.data.get('patient_id')
+    appointment_id = request.data.get('appointment_id')
+    medication = request.data.get('medication', '').strip()
+    dosage = request.data.get('dosage', '').strip()
+    frequency = request.data.get('frequency', '').strip()
+    duration = request.data.get('duration', '').strip()
+    instructions = request.data.get('instructions', '').strip()
 
-    n = Notification.objects.create(
-        user=request.user,
-        type='system',
-        message=f'{PREFIX}{patient_name}|{notes_text}',
+    if not patient_id:
+        return Response({'error': 'patient_id is required'}, status=400)
+    if not medication:
+        return Response({'error': 'medication is required'}, status=400)
+
+    try:
+        patient = Patient.objects.get(pk=patient_id)
+    except Patient.DoesNotExist:
+        return Response({'error': 'Patient not found'}, status=404)
+
+    from apps.appointments.models import Appointment
+    appointment = None
+    if appointment_id:
+        try:
+            appointment = Appointment.objects.get(pk=appointment_id, doctor=doctor, patient=patient)
+        except Appointment.DoesNotExist:
+            return Response({'error': 'Appointment not found or not associated with this doctor/patient pair'}, status=404)
+
+    prescription = Prescription.objects.create(
+        doctor=doctor,
+        patient=patient,
+        appointment=appointment,
+        medication=medication,
+        dosage=dosage,
+        frequency=frequency,
+        duration=duration,
+        instructions=instructions,
     )
-    return Response({'id': n.id, 'patient_name': patient_name, 'notes': notes_text, 'created_at': n.created_at}, status=201)
+    return Response(PrescriptionSerializer(prescription).data, status=201)

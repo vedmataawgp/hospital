@@ -24,9 +24,9 @@ class AppointmentAdmin(admin.ModelAdmin):
 class PrescriptionAdmin(admin.ModelAdmin):
     list_display = ('id', 'get_patient', 'get_doctor', 'get_appointment', 'created_at')
     list_filter = ('created_at',)
-    search_fields = ('patient__user__name', 'doctor__user__name', 'medication_name')
+    search_fields = ('patient__user__name', 'doctor__user__name', 'medication')
     ordering = ('-created_at',)
-    readonly_fields = ('created_at', 'updated_at')
+    readonly_fields = ('created_at',)
 
     def get_patient(self, obj):
         return obj.patient.user.name

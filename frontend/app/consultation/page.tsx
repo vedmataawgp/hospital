@@ -1,157 +1,239 @@
 "use client";
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
-import { api } from "@/lib/api";
-import { useMutation } from "@/lib/useApi";
-import type { Message } from "@/lib/types";
+import { api, tokenStore, userStore } from "@/lib/api";
+import Link from "next/link";
 
-const seedMessages: Message[] = [
-  { id: 1, from: "doctor",  text: "Hello! How are you feeling today?",                              time: "10:01 AM" },
-  { id: 2, from: "patient", text: "Hi Doctor, I've been having some chest pain since yesterday.",   time: "10:02 AM" },
-  { id: 3, from: "doctor",  text: "I see. Can you describe the pain? Is it sharp or dull?",         time: "10:03 AM" },
-];
-
-const CONSULTATION_ID = 1;
+interface Appointment {
+  id: number;
+  doctor_name?: string;
+  patient_name?: string;
+  date: string;
+  time: string;
+  status: string;
+}
 
 export default function ConsultationPage() {
-  const [messages, setMessages] = useState<Message[]>(seedMessages);
-  const [input, setInput] = useState("");
-  const endRef = useRef<HTMLDivElement>(null);
+  const currentUser = userStore.get();
+  const isLoggedIn = !!tokenStore.get() && !!currentUser;
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [activeCall, setActiveCall] = useState<Appointment | null>(null);
+  const [callTime, setCallTime] = useState(0);
+  const [micOn, setMicOn] = useState(true);
+  const [camOn, setCamOn] = useState(true);
 
   useEffect(() => {
-    endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    if (!isLoggedIn) return;
+    setLoading(true);
+    api.appointments.list({ status: "confirmed" })
+      .then(data => {
+        const items = Array.isArray(data) ? data : [];
+        setAppointments(items);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, [isLoggedIn]);
 
-  const sendMutator = useCallback(
-    () => api.consultation.send(CONSULTATION_ID, input),
-    [input],
-  );
+  useEffect(() => {
+    let timer: ReturnType<typeof setInterval>;
+    if (activeCall) {
+      timer = setInterval(() => setCallTime(t => t + 1), 1000);
+    } else {
+      setCallTime(0);
+    }
+    return () => clearInterval(timer);
+  }, [activeCall]);
 
-  const [sendMessage, { loading: sending }] = useMutation(sendMutator);
-
-  const handleSend = async () => {
-    const text = input.trim();
-    if (!text || sending) return;
-
-    const optimistic: Message = {
-      id: Date.now(),
-      from: "patient",
-      text,
-      time: new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }),
-    };
-    setMessages(m => [...m, optimistic]);
-    setInput("");
-
-    await sendMessage();
+  const formatCallTime = (secs: number) => {
+    const m = Math.floor(secs / 60).toString().padStart(2, "0");
+    const s = (secs % 60).toString().padStart(2, "0");
+    return `${m}:${s}`;
   };
+
+  if (!isLoggedIn) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center bg-[#F8FAFC]">
+          <div className="text-center max-w-sm px-6">
+            <div className="w-20 h-20 bg-[#EFF6FF] rounded-full flex items-center justify-center mx-auto mb-6">
+              <i className="bi bi-camera-video-fill text-4xl text-[#2C74B3]" />
+            </div>
+            <h2 className="text-2xl font-bold text-[#0A2647] mb-3">Sign in to consult online</h2>
+            <p className="text-gray-500 mb-6">Video consultations with your doctor, from anywhere.</p>
+            <Link href="/auth/login" className="bg-[#2C74B3] text-white font-semibold px-6 py-3 rounded-xl hover:bg-[#0A2647] transition-all">
+              Sign In
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (activeCall) {
+    const otherName = currentUser?.role === "patient"
+      ? `Dr. ${activeCall.doctor_name ?? "Doctor"}`
+      : (activeCall.patient_name ?? "Patient");
+
+    return (
+      <div className="min-h-screen flex flex-col bg-[#0A2647] text-white">
+        <div className="px-6 py-4 flex items-center justify-between border-b border-white/10">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 bg-[#2C74B3] rounded-lg flex items-center justify-center">
+              <i className="bi bi-heart-pulse-fill text-white text-sm" />
+            </div>
+            <span className="font-bold text-white">MediCare Video</span>
+          </div>
+          <div className="flex items-center gap-2 bg-red-500/20 border border-red-500/30 rounded-full px-3 py-1">
+            <span className="w-2 h-2 bg-red-400 rounded-full animate-pulse" />
+            <span className="text-red-300 text-xs font-semibold">LIVE · {formatCallTime(callTime)}</span>
+          </div>
+          <div className="text-white/40 text-sm">End-to-end encrypted</div>
+        </div>
+
+        <div className="flex-1 flex flex-col items-center justify-center gap-10 p-8">
+          <div className="relative">
+            <div className="w-48 h-48 bg-gradient-to-br from-[#144272] to-[#2C74B3] rounded-full flex items-center justify-center shadow-2xl ring-4 ring-sky-400/30">
+              <i className="bi bi-person-fill text-white text-7xl" />
+            </div>
+            {!camOn && (
+              <div className="absolute inset-0 bg-[#0A2647]/80 rounded-full flex items-center justify-center">
+                <i className="bi bi-camera-video-off-fill text-white/50 text-3xl" />
+              </div>
+            )}
+          </div>
+
+          <div className="text-center">
+            <h2 className="text-2xl font-bold">{otherName}</h2>
+            <p className="text-sky-300 text-sm mt-1">In secure consultation</p>
+          </div>
+
+          <div className="flex gap-4 items-center">
+            <button
+              onClick={() => setMicOn(v => !v)}
+              className={`flex flex-col items-center gap-2 w-20 py-3 rounded-2xl transition-colors ${micOn ? "bg-white/10 hover:bg-white/20" : "bg-red-500/80"}`}
+            >
+              <i className={`bi ${micOn ? "bi-mic-fill" : "bi-mic-mute-fill"} text-xl`} />
+              <span className="text-xs">{micOn ? "Mute" : "Unmuted"}</span>
+            </button>
+
+            <button
+              onClick={() => setCamOn(v => !v)}
+              className={`flex flex-col items-center gap-2 w-20 py-3 rounded-2xl transition-colors ${camOn ? "bg-white/10 hover:bg-white/20" : "bg-red-500/80"}`}
+            >
+              <i className={`bi ${camOn ? "bi-camera-video-fill" : "bi-camera-video-off-fill"} text-xl`} />
+              <span className="text-xs">Camera</span>
+            </button>
+
+            <Link
+              href="/chat"
+              className="flex flex-col items-center gap-2 w-20 py-3 rounded-2xl bg-white/10 hover:bg-white/20 transition-colors text-center"
+            >
+              <i className="bi bi-chat-dots-fill text-xl" />
+              <span className="text-xs">Chat</span>
+            </Link>
+
+            <button
+              onClick={() => setActiveCall(null)}
+              className="flex flex-col items-center gap-2 w-20 py-3 rounded-2xl bg-red-500 hover:bg-red-600 transition-colors"
+            >
+              <i className="bi bi-telephone-fill rotate-[135deg] text-xl" />
+              <span className="text-xs">End</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F8FAFC]">
       <Navbar />
-      <div className="flex-1 flex max-w-7xl mx-auto w-full px-4 py-8 gap-6">
-
-        {/* Chat panel */}
-        <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden">
-
-          {/* Header */}
-          <div className="p-5 border-b border-gray-100 flex items-center gap-4 bg-white">
-            <div className="w-12 h-12 bg-gradient-to-br from-[#144272] to-[#2C74B3] rounded-full flex items-center justify-center">
-              <i className="bi bi-person-circle text-white text-2xl" />
-            </div>
-            <div>
-              <div className="font-bold text-[#0A2647]">Dr. Sarah Johnson</div>
-              <div className="flex items-center gap-1.5">
-                <div className="w-2 h-2 bg-[#2A9D8F] rounded-full" />
-                <span className="text-[#2A9D8F] text-xs font-semibold">Online</span>
-              </div>
-            </div>
-            <div className="ml-auto flex gap-2">
-              <button className="w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center text-gray-500 hover:border-[#2C74B3] hover:text-[#2C74B3] transition-all" title="Video call">
-                <i className="bi bi-camera-video-fill" />
-              </button>
-              <button className="bg-[#E63946] text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-red-700 transition-all flex items-center gap-1.5">
-                <i className="bi bi-telephone-x-fill" />
-                End
-              </button>
-            </div>
-          </div>
-
-          {/* Messages */}
-          <div className="flex-1 p-6 overflow-y-auto space-y-4" style={{ maxHeight: "460px" }}>
-            {messages.map(m => (
-              <div key={m.id} className={`flex ${m.from === "patient" ? "justify-end" : "justify-start"}`}>
-                {m.from === "doctor" && (
-                  <div className="w-8 h-8 bg-gradient-to-br from-[#144272] to-[#2C74B3] rounded-full flex items-center justify-center mr-2 flex-shrink-0 self-end">
-                    <i className="bi bi-person-circle text-white text-sm" />
-                  </div>
-                )}
-                <div className={`max-w-xs lg:max-w-md px-4 py-3 rounded-2xl text-sm shadow-sm ${
-                  m.from === "patient"
-                    ? "bg-[#2C74B3] text-white rounded-br-none"
-                    : "bg-[#F1F5F9] text-[#0A2647] rounded-bl-none border border-gray-100"
-                }`}>
-                  <p className="leading-relaxed">{m.text}</p>
-                  {/* CONTRAST: time text visible on both backgrounds */}
-                  <p className={`text-xs mt-1.5 ${m.from === "patient" ? "text-blue-200" : "text-gray-400"}`}>
-                    {m.time}
-                  </p>
-                </div>
-              </div>
-            ))}
-            <div ref={endRef} />
-          </div>
-
-          {/* Input */}
-          <div className="p-4 border-t border-gray-100 bg-white">
-            <div className="flex gap-3 items-center">
-              <button className="text-gray-400 hover:text-[#2C74B3] transition-colors w-9 h-9 rounded-xl border border-gray-200 flex items-center justify-center hover:border-[#2C74B3]">
-                <i className="bi bi-paperclip" />
-              </button>
-              <input
-                value={input}
-                onChange={e => setInput(e.target.value)}
-                onKeyDown={e => e.key === "Enter" && !e.shiftKey && handleSend()}
-                placeholder="Type your message..."
-                className="flex-1 border-2 border-gray-200 rounded-xl px-4 py-2.5 text-[#0A2647] placeholder-gray-400 focus:border-[#2C74B3] focus:outline-none transition-colors text-sm"
-              />
-              <button onClick={handleSend} disabled={sending || !input.trim()}
-                className="bg-[#2C74B3] text-white px-5 py-2.5 rounded-xl font-semibold hover:bg-[#0A2647] transition-all text-sm disabled:opacity-50 flex items-center gap-1.5">
-                {sending
-                  ? <i className="bi bi-arrow-repeat animate-spin" />
-                  : <><i className="bi bi-send-fill" /> Send</>}
-              </button>
-            </div>
-          </div>
+      <div className="flex-1 container mx-auto px-4 py-10 max-w-4xl">
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-[#0A2647]">Online Consultation</h1>
+          <p className="text-gray-500 mt-1">Connect with your doctor via secure video call.</p>
         </div>
 
-        {/* Patient Details */}
-        <div className="w-72 flex-shrink-0 hidden lg:block">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 sticky top-24">
-            <h3 className="font-bold text-[#0A2647] text-lg mb-4 flex items-center gap-2">
-              <i className="bi bi-person-vcard-fill text-[#2C74B3]" />
-              Patient Details
-            </h3>
-            <div className="text-center mb-6">
-              <div className="w-16 h-16 bg-gradient-to-br from-[#144272] to-[#2C74B3] rounded-full flex items-center justify-center mx-auto mb-3">
-                <i className="bi bi-person-circle text-white text-3xl" />
+        <div className="grid md:grid-cols-3 gap-4 mb-8">
+          {[
+            { icon: "bi-shield-check-fill", color: "text-green-600", bg: "bg-green-50", title: "Encrypted", desc: "End-to-end secure" },
+            { icon: "bi-clock-fill", color: "text-blue-600", bg: "bg-blue-50", title: "On-demand", desc: "Any time, any device" },
+            { icon: "bi-file-earmark-medical-fill", color: "text-purple-600", bg: "bg-purple-50", title: "E-Prescription", desc: "Get digital prescriptions" },
+          ].map(f => (
+            <div key={f.title} className={`rounded-2xl p-5 flex items-start gap-4 ${f.bg}`}>
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${f.bg}`}>
+                <i className={`bi ${f.icon} ${f.color} text-xl`} />
               </div>
-              <div className="font-bold text-[#0A2647]">John Patient</div>
-              <div className="text-gray-500 text-sm">ID: #PT-00123</div>
+              <div>
+                <p className="font-semibold text-[#0A2647]">{f.title}</p>
+                <p className="text-gray-500 text-sm">{f.desc}</p>
+              </div>
             </div>
-            <div className="space-y-3">
-              {[
-                ["Age",            "40 years"],
-                ["Blood Group",    "A+"],
-                ["Allergies",      "None"],
-                ["Last Visit",     "Mar 15, 2026"],
-                ["Chief Complaint","Chest pain"],
-              ].map(([k, v]) => (
-                <div key={k} className="flex justify-between text-sm py-2 border-b border-gray-50 last:border-0">
-                  <span className="text-gray-500">{k}</span>
-                  <span className="text-[#0A2647] font-semibold">{v}</span>
+          ))}
+        </div>
+
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="font-bold text-[#0A2647]">Your Confirmed Appointments</h2>
+            <Link href="/appointments" className="text-[#2C74B3] text-sm font-semibold hover:underline">
+              Book new →
+            </Link>
+          </div>
+
+          {loading && (
+            <div className="py-12 text-center text-gray-400">
+              <i className="bi bi-arrow-repeat animate-spin text-3xl block mb-3" />
+              Loading appointments…
+            </div>
+          )}
+
+          {!loading && appointments.length === 0 && (
+            <div className="py-12 text-center">
+              <i className="bi bi-calendar-x text-5xl text-gray-200 block mb-4" />
+              <p className="text-gray-500 font-medium">No confirmed appointments</p>
+              <p className="text-gray-400 text-sm mt-1">Book an appointment first to start a consultation.</p>
+              <Link href="/appointments"
+                className="mt-4 inline-block bg-[#2C74B3] text-white font-semibold px-6 py-2.5 rounded-xl hover:bg-[#0A2647] transition-colors">
+                Book Appointment
+              </Link>
+            </div>
+          )}
+
+          {appointments.map(appt => (
+            <div key={appt.id} className="px-6 py-4 border-b border-gray-50 last:border-0 flex items-center justify-between hover:bg-[#F8FAFC] transition-colors">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-[#EFF6FF] rounded-xl flex items-center justify-center">
+                  <i className="bi bi-camera-video-fill text-[#2C74B3] text-xl" />
                 </div>
-              ))}
+                <div>
+                  <p className="font-semibold text-[#0A2647]">
+                    {currentUser?.role === "patient"
+                      ? `Dr. ${appt.doctor_name ?? "Doctor"}`
+                      : (appt.patient_name ?? "Patient")}
+                  </p>
+                  <p className="text-gray-500 text-sm">{appt.date} at {appt.time}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setActiveCall(appt)}
+                className="bg-[#2C74B3] text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-[#0A2647] transition-colors flex items-center gap-2"
+              >
+                <i className="bi bi-camera-video-fill" />
+                Join Call
+              </button>
             </div>
+          ))}
+        </div>
+
+        <div className="mt-6 bg-amber-50 border border-amber-200 rounded-2xl p-5 flex gap-4">
+          <i className="bi bi-info-circle-fill text-amber-500 text-xl flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="font-semibold text-amber-800">Browser permissions required</p>
+            <p className="text-amber-700 text-sm mt-1">
+              Allow camera and microphone access when prompted. Use a modern browser like Chrome or Firefox for the best experience.
+            </p>
           </div>
         </div>
       </div>

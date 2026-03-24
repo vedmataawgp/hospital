@@ -229,6 +229,41 @@ export const api = {
     },
 
     me: () => request<User>("/auth/profile/").then((u) => { userStore.set(u); return u; }),
+
+    forgotPassword: (email: string) =>
+      request<{ message: string }>("/auth/forgot-password/", {
+        method: "POST",
+        body: JSON.stringify({ email }),
+      }),
+
+    resetPassword: (email: string, token: string, password: string) =>
+      request<{ message: string }>("/auth/reset-password/", {
+        method: "POST",
+        body: JSON.stringify({ email, token, new_password: password }),
+      }),
+
+    changePassword: (old_password: string, new_password: string) =>
+      request<{ message: string }>("/auth/change-password/", {
+        method: "POST",
+        body: JSON.stringify({ old_password, new_password }),
+      }),
+
+    uploadAvatar: (file: File) => {
+      const form = new FormData();
+      form.append("avatar", file);
+      const token = tokenStore.get();
+      return fetch(`${BASE_URL}/auth/avatar/`, {
+        method: "POST",
+        headers: {
+          "X-Requested-With": "XMLHttpRequest",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: form,
+      }).then(async r => {
+        if (!r.ok) { const b = await r.json().catch(() => ({})); throw new Error(b?.message ?? `Upload failed (${r.status})`); }
+        return r.json() as Promise<{ avatar_url: string }>;
+      });
+    },
   },
 
   /* ── Chat ───────────────────────────────────────────────────── */
@@ -381,10 +416,17 @@ export const api = {
   upload: (file: File) => {
     const form = new FormData();
     form.append("file", file);
-    return request<{ url: string; name: string; size: number; type: string }>("/upload/", {
+    const token = tokenStore.get();
+    return fetch(`${BASE_URL}/upload/`, {
       method: "POST",
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: form,
-      headers: {},
+    }).then(async r => {
+      if (!r.ok) { const b = await r.json().catch(() => ({})); throw new Error(b?.message ?? `Upload failed (${r.status})`); }
+      return r.json() as Promise<{ url: string; name: string; size: number; type: string }>;
     });
   },
 
