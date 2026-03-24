@@ -1,0 +1,25 @@
+services:
+  backend:
+    build: ./artifacts/api-server
+    ports:
+      - "8080:8080"
+    environment:
+      - DJANGO_DEBUG=True
+      - DJANGO_SECRET_KEY=django-insecure-hospital-system-secret-key-change-in-production-2024
+    volumes:
+      - ./artifacts/api-server:/app
+    command: >
+      sh -c "python manage.py migrate --no-input &&
+             python manage.py runserver 0.0.0.0:8080"
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "5000:5000"
+    environment:
+      - BACKEND_URL=http://backend:8080
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
