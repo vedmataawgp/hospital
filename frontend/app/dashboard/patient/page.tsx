@@ -40,8 +40,9 @@ export default function PatientDashboard() {
   const invs   = useApi(active === "Billing"      ? invFetcher    : null);
   const prof   = useApi(active === "Profile"      ? profFetcher   : null);
 
-  const upcoming: Appointment[] = (apts.data ?? []).filter(a => a.status === "Confirmed" || a.status === "Pending");
-  const past: Appointment[]     = (apts.data ?? []).filter(a => a.status === "Completed" || a.status === "Cancelled");
+  const allAppts: Appointment[]  = apts.data?.data ?? [];
+  const upcoming: Appointment[] = allAppts.filter(a => ["confirmed","pending"].includes(String(a.status).toLowerCase()));
+  const past: Appointment[]     = allAppts.filter(a => ["completed","cancelled"].includes(String(a.status).toLowerCase()));
   const reports: Report[]       = reps.data ?? [];
   const invoices: Invoice[]     = invs.data ?? [];
 
@@ -90,9 +91,9 @@ export default function PatientDashboard() {
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
                 {[
-                  { label: "Upcoming Appointments", val: dash.data?.upcoming_appointments?.length ?? "—", icon: "bi-calendar-check-fill",   bg: "bg-blue-50 border-blue-100",   ic: "text-[#2C74B3]" },
-                  { label: "Reports Available",      val: dash.data?.reports_count ?? "—",                icon: "bi-clipboard2-data-fill",     bg: "bg-green-50 border-green-100", ic: "text-[#2A9D8F]" },
-                  { label: "Notifications",          val: dash.data?.notifications_count ?? "—",          icon: "bi-bell-fill",                bg: "bg-amber-50 border-amber-100", ic: "text-amber-600" },
+                  { label: "Upcoming Appointments", val: dash.data?.upcomingAppointments ?? dash.data?.upcomingList?.length ?? "—", icon: "bi-calendar-check-fill",   bg: "bg-blue-50 border-blue-100",   ic: "text-[#2C74B3]" },
+                  { label: "Reports Available",      val: dash.data?.totalReports ?? "—",                                          icon: "bi-clipboard2-data-fill",     bg: "bg-green-50 border-green-100", ic: "text-[#2A9D8F]" },
+                  { label: "Total Appointments",     val: dash.data?.totalAppointments ?? "—",                                     icon: "bi-calendar2-check-fill",     bg: "bg-amber-50 border-amber-100", ic: "text-amber-600" },
                 ].map(c => (
                   <div key={c.label} className={`${c.bg} border rounded-2xl p-6 stat-card`}>
                     <i className={`bi ${c.icon} text-3xl ${c.ic} mb-3 block`} />

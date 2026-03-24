@@ -1,34 +1,33 @@
-# dev.ps1 - Automated setup and run for MediCare Hospital
+# dev.ps1 — Start both backend and frontend for MediCare Hospital
+# Uses uv with the workspace-level pyproject.toml (no separate venv needed).
 
-Write-Host "Checking for uv..." -ForegroundColor Cyan
+$RepoRoot = Split-Path -Parent $MyInvocation.MyCommand.Definition
+
+Write-Host "[1/4] Checking uv..." -ForegroundColor Cyan
 if (!(Get-Command uv -ErrorAction SilentlyContinue)) {
-    # Try common Windows Python AppData paths
-    $uvBinPath = Get-ChildItem -Path "$HOME\AppData\Local\Packages\PythonSoftwareFoundation.Python.*\LocalCache\local-packages\Python*\Scripts\uv.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-    if ($uvBinPath) {
-        $env:PATH += ";$($uvBinPath.DirectoryName)"
-        Write-Host "Found uv.exe in LocalCache, added to temporary PATH." -ForegroundColor Yellow
-    } else {
-        Write-Host "uv not found, installing via pip..." -ForegroundColor Yellow
-        pip install uv
-        # Try again after installation
-        $uvBinPath = Get-ChildItem -Path "$HOME\AppData\Local\Packages\PythonSoftwareFoundation.Python.*\LocalCache\local-packages\Python*\Scripts\uv.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
-        if ($uvBinPath) { $env:PATH += ";$($uvBinPath.DirectoryName)" }
-    }
-}
-if (!(Get-Command uv -ErrorAction SilentlyContinue)) {
-    Write-Host "Error: uv is not in your PATH. Please restart your PowerShell window." -ForegroundColor Red
+    Write-Host "ERROR: uv not found. Run: pip install uv" -ForegroundColor Red
     exit 1
 }
+Write-Host "      uv $(uv --version) — OK" -ForegroundColor Green
 
-Write-Host "Setting up backend..." -ForegroundColor Cyan
-Set-Location "artifacts/api-server"
-uv pip install -r requirements.txt
-uv run python manage.py migrate
-Get-Content seed_users.py | uv run python manage.py shell
-Start-Process powershell -ArgumentList "-NoExit", "-Command", "uv run python manage.py runserver 0.0.0.0:8080"
-Write-Host "Backend server started in a new PowerShell window on port 8080." -ForegroundColor Green
+Write-Host "[2/4] Running Django migrations..." -ForegroundColor Cyan
+Set-Location "$RepoRoot\artifacts\api-server"
+uv run python manage.py migrate --no-input
 
-Write-Host "Setting up frontend..." -ForegroundColor Cyan
-Set-Location "../../frontend"
-npm install
+Write-Host "[3/4] Seeding initial users (safe to run multiple times)..." -ForegroundColor Cyan
+Get-Content seed_users.py | uv run python manage.py shell 2>$null
+
+Write-Host ""
+Write-Host "  Backend  → http://localhost:8080" -ForegroundColor White
+Write-Host "  Frontend → http://localhost:5000" -ForegroundColor White
+Write-Host ""
+
+Write-Host "[4/4] Starting backend in a new window (port 8080)..." -ForegroundColor Cyan
+Start-Process powershell -ArgumentList "-NoExit", "-Command", `
+    "Set-Location '$RepoRoot\artifacts\api-server'; uv run python manage.py runserver 0.0.0.0:8080"
+Write-Host "      Backend window opened." -ForegroundColor Green
+
+Write-Host "      Starting frontend (port 5000)..." -ForegroundColor Cyan
+Set-Location "$RepoRoot\frontend"
+npm install --silent
 npm run dev

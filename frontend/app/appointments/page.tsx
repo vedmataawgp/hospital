@@ -1,49 +1,64 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
-import { api } from "@/lib/api";
+import { api, tokenStore } from "@/lib/api";
 import { useMutation } from "@/lib/useApi";
+import type { Doctor, Department } from "@/lib/types";
 
-const steps = ["Department", "Doctor", "Date & Time", "Details", "Confirm"];
+const steps = ["Department", "Doctor", "Date & Time", "Confirm"];
 
-const departments = ["Cardiology", "Neurology", "Pediatrics", "Orthopedics", "Ophthalmology", "General Medicine"];
-const doctorsByDept: Record<string, string[]> = {
-  Cardiology:        ["Dr. Sarah Johnson", "Dr. Emily Rodriguez"],
-  Neurology:         ["Dr. Michael Chen", "Dr. David Kim"],
-  Pediatrics:        ["Dr. Aisha Patel", "Dr. Lisa Thompson"],
-  Orthopedics:       ["Dr. James Wilson", "Dr. Robert Davis"],
-  Ophthalmology:     ["Dr. Anna White"],
-  "General Medicine":["Dr. Peter Brown", "Dr. Susan Lee"],
-};
-const timeSlots = ["09:00 AM","09:30 AM","10:00 AM","10:30 AM","11:00 AM","11:30 AM","02:00 PM","02:30 PM","03:00 PM","03:30 PM","04:00 PM"];
+const timeSlots = [
+  "09:00 AM","09:30 AM","10:00 AM","10:30 AM","11:00 AM","11:30 AM",
+  "02:00 PM","02:30 PM","03:00 PM","03:30 PM","04:00 PM","04:30 PM",
+];
+
+function toApiTime(display: string): string {
+  const [time, period] = display.split(" ");
+  const [h, m] = time.split(":");
+  let hour = parseInt(h, 10);
+  if (period === "PM" && hour !== 12) hour += 12;
+  if (period === "AM" && hour === 12) hour = 0;
+  return `${String(hour).padStart(2, "0")}:${m}`;
+}
 
 export default function AppointmentPage() {
+  const router = useRouter();
+  const [authed, setAuthed] = useState<boolean | null>(null);
   const [step, setStep] = useState(0);
-  const [dept, setDept] = useState("");
-  const [doctor, setDoctor] = useState("");
+  const [departments, setDepartments] = useState<Department[]>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [loadingDepts, setLoadingDepts] = useState(true);
+  const [loadingDocs, setLoadingDocs] = useState(false);
+
+  const [deptId, setDeptId] = useState<number | null>(null);
+  const [deptName, setDeptName] = useState("");
+  const [doctorId, setDoctorId] = useState<number | null>(null);
+  const [doctorName, setDoctorName] = useState("");
   const [date, setDate] = useState("");
   const [time, setTime] = useState("");
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [phone, setPhone] = useState("");
   const [notes, setNotes] = useState("");
   const [booked, setBooked] = useState(false);
 
-  const mutator = useCallback(
-    () => api.appointments.create({
-      department: dept,
-      doctor_name: doctor,
-      date,
-      time,
-      patient_name: name,
-      patient_email: email,
-      patient_phone: phone,
-      notes,
-    }),
-    [dept, doctor, date, time, name, email, phone, notes],
-  );
+  useEffect(() => {
+    setAuthed(!!tokenStore.get());
+    api.departments.list().then(setDepartments).finally(() => setLoadingDepts(false));
+  }, []);
 
+  useEffect(() => {
+    if (deptName) {
+      setLoadingDocs(true);
+      api.doctors.list({ specialization: deptName })
+        .then(res => setDoctors(res.data ?? []))
+        .finally(() => setLoadingDocs(false));
+    }
+  }, [deptName]);
+
+  const mutator = useCallback(
+    () => api.appointments.create({ doctorId: doctorId!, date, time: toApiTime(time), notes }),
+    [doctorId, date, time, notes],
+  );
   const [submit, { loading: submitting, error: submitError }] = useMutation(mutator);
 
   const next = () => setStep(s => Math.min(s + 1, steps.length - 1));
@@ -53,6 +68,41 @@ export default function AppointmentPage() {
     const result = await submit();
     if (result !== null) setBooked(true);
   };
+
+  const canNext = [
+    deptId !== null,
+    doctorId !== null,
+    date !== "" && time !== "",
+    true,
+  ][step];
+
+  if (authed === false) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <Navbar />
+        <div className="flex-1 flex items-center justify-center p-8">
+          <div className="text-center max-w-md">
+            <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
+              <i className="bi bi-lock-fill text-4xl text-[#2C74B3]" />
+            </div>
+            <h2 className="text-3xl font-bold text-[#0A2647] mb-3">Sign In Required</h2>
+            <p className="text-gray-500 mb-6">Please sign in to your patient account to book an appointment with our doctors.</p>
+            <div className="flex gap-3 justify-center">
+              <button onClick={() => router.push("/auth/login")}
+                className="bg-[#2C74B3] text-white font-semibold px-8 py-3 rounded-xl hover:bg-[#0A2647] transition-all">
+                Sign In
+              </button>
+              <button onClick={() => router.push("/auth/register")}
+                className="border-2 border-[#2C74B3] text-[#2C74B3] font-semibold px-8 py-3 rounded-xl hover:bg-[#EFF6FF] transition-all">
+                Register
+              </button>
+            </div>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   if (booked) {
     return (
@@ -65,16 +115,20 @@ export default function AppointmentPage() {
             </div>
             <h2 className="text-3xl font-bold text-[#0A2647] mb-3">Appointment Confirmed!</h2>
             <p className="text-gray-500 mb-6">
-              Your appointment with <strong>{doctor}</strong> in <strong>{dept}</strong> has been booked for{" "}
-              <strong>{date}</strong> at <strong>{time}</strong>. A confirmation will be sent to{" "}
-              <strong>{email}</strong>.
+              Your appointment with <strong>{doctorName}</strong> has been booked for{" "}
+              <strong>{date}</strong> at <strong>{time}</strong>.
             </p>
-            <button
-              onClick={() => { setBooked(false); setStep(0); setDept(""); setDoctor(""); setDate(""); setTime(""); setName(""); setEmail(""); setPhone(""); setNotes(""); }}
-              className="bg-[#2C74B3] text-white font-semibold px-8 py-3 rounded-xl hover:bg-[#0A2647] transition-all"
-            >
-              Book Another
-            </button>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => { setBooked(false); setStep(0); setDeptId(null); setDeptName(""); setDoctorId(null); setDoctorName(""); setDate(""); setTime(""); setNotes(""); }}
+                className="bg-[#2C74B3] text-white font-semibold px-8 py-3 rounded-xl hover:bg-[#0A2647] transition-all">
+                Book Another
+              </button>
+              <button onClick={() => router.push("/dashboard/patient")}
+                className="border-2 border-[#2C74B3] text-[#2C74B3] font-semibold px-8 py-3 rounded-xl hover:bg-[#EFF6FF] transition-all">
+                View Dashboard
+              </button>
+            </div>
           </div>
         </div>
         <Footer />
@@ -122,18 +176,27 @@ export default function AppointmentPage() {
               <h2 className="text-2xl font-bold text-[#0A2647] mb-6 flex items-center gap-2">
                 <i className="bi bi-grid-fill text-[#2C74B3]" /> Select Department
               </h2>
-              <div className="grid grid-cols-2 gap-4">
-                {departments.map(d => (
-                  <button key={d} onClick={() => setDept(d)}
-                    className={`p-4 rounded-xl border-2 text-left font-medium transition-all ${
-                      dept === d
-                        ? "border-[#2C74B3] bg-[#EFF6FF] text-[#2C74B3]"
-                        : "border-gray-200 text-gray-700 hover:border-[#2C74B3]/50"
-                    }`}>
-                    {d}
-                  </button>
-                ))}
-              </div>
+              {loadingDepts ? (
+                <div className="grid grid-cols-2 gap-4">
+                  {Array.from({length:6}).map((_,i)=>(
+                    <div key={i} className="p-4 rounded-xl border-2 border-gray-100 bg-gray-50 h-16 animate-pulse" />
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-4">
+                  {departments.map(d => (
+                    <button key={d.id} onClick={() => { setDeptId(d.id); setDeptName(d.name); setDoctorId(null); setDoctorName(""); }}
+                      className={`p-4 rounded-xl border-2 text-left font-medium transition-all ${
+                        deptId === d.id
+                          ? "border-[#2C74B3] bg-[#EFF6FF] text-[#2C74B3]"
+                          : "border-gray-200 text-gray-700 hover:border-[#2C74B3]/50"
+                      }`}>
+                      <div className="font-semibold">{d.name}</div>
+                      {d.description && <div className="text-xs text-gray-500 mt-0.5">{d.description}</div>}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -143,22 +206,40 @@ export default function AppointmentPage() {
               <h2 className="text-2xl font-bold text-[#0A2647] mb-6 flex items-center gap-2">
                 <i className="bi bi-person-badge-fill text-[#2C74B3]" /> Select Doctor
               </h2>
-              <div className="space-y-3">
-                {(doctorsByDept[dept] || []).map(d => (
-                  <button key={d} onClick={() => setDoctor(d)}
-                    className={`w-full p-4 rounded-xl border-2 text-left font-medium transition-all flex items-center gap-4 ${
-                      doctor === d ? "border-[#2C74B3] bg-[#EFF6FF]" : "border-gray-200 hover:border-[#2C74B3]/50"
-                    }`}>
-                    <div className="w-12 h-12 bg-gradient-to-br from-[#144272] to-[#2C74B3] rounded-full flex items-center justify-center">
-                      <i className="bi bi-person-circle text-white text-2xl" />
-                    </div>
-                    <div>
-                      <div className={`font-semibold ${doctor === d ? "text-[#2C74B3]" : "text-[#0A2647]"}`}>{d}</div>
-                      <div className="text-sm text-gray-500">{dept} Specialist</div>
-                    </div>
-                  </button>
-                ))}
-              </div>
+              {loadingDocs ? (
+                <div className="space-y-3">
+                  {Array.from({length:3}).map((_,i)=>(
+                    <div key={i} className="p-4 rounded-xl border-2 border-gray-100 bg-gray-50 h-20 animate-pulse" />
+                  ))}
+                </div>
+              ) : doctors.length === 0 ? (
+                <div className="text-center py-8 text-gray-400">
+                  <i className="bi bi-person-x text-4xl block mb-2" />
+                  No doctors available in {deptName}
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {doctors.map(d => (
+                    <button key={d.id} onClick={() => { setDoctorId(d.id); setDoctorName(d.name); }}
+                      className={`w-full p-4 rounded-xl border-2 text-left font-medium transition-all flex items-center gap-4 ${
+                        doctorId === d.id ? "border-[#2C74B3] bg-[#EFF6FF]" : "border-gray-200 hover:border-[#2C74B3]/50"
+                      }`}>
+                      <div className="w-12 h-12 bg-gradient-to-br from-[#144272] to-[#2C74B3] rounded-full flex items-center justify-center flex-shrink-0">
+                        <i className="bi bi-person-circle text-white text-2xl" />
+                      </div>
+                      <div className="flex-1">
+                        <div className={`font-semibold ${doctorId === d.id ? "text-[#2C74B3]" : "text-[#0A2647]"}`}>{d.name}</div>
+                        <div className="text-sm text-gray-500">{d.specialization} · {d.experience_years ?? d.experience} yrs exp</div>
+                      </div>
+                      {d.rating !== undefined && (
+                        <div className="text-sm font-semibold text-amber-500 flex items-center gap-1">
+                          <i className="bi bi-star-fill" /> {d.rating.toFixed(1)}
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -174,7 +255,7 @@ export default function AppointmentPage() {
                   min={new Date().toISOString().split("T")[0]}
                   className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-[#0A2647] focus:border-[#2C74B3] focus:outline-none transition-colors" />
               </div>
-              <div>
+              <div className="mb-6">
                 <label className="block text-sm font-semibold text-gray-700 mb-3">Time Slot</label>
                 <div className="grid grid-cols-3 gap-3">
                   {timeSlots.map(t => (
@@ -189,53 +270,28 @@ export default function AppointmentPage() {
                   ))}
                 </div>
               </div>
-            </div>
-          )}
-
-          {/* Step 4: Details */}
-          {step === 3 && (
-            <div>
-              <h2 className="text-2xl font-bold text-[#0A2647] mb-6 flex items-center gap-2">
-                <i className="bi bi-person-lines-fill text-[#2C74B3]" /> Your Details
-              </h2>
-              <div className="space-y-4">
-                {[
-                  { label: "Full Name", value: name, setter: setName, type: "text", placeholder: "John Doe" },
-                  { label: "Email Address", value: email, setter: setEmail, type: "email", placeholder: "john@example.com" },
-                  { label: "Phone Number", value: phone, setter: setPhone, type: "tel", placeholder: "+1 (555) 000-0000" },
-                ].map(f => (
-                  <div key={f.label}>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">{f.label}</label>
-                    <input type={f.type} value={f.value} onChange={e => f.setter(e.target.value)}
-                      placeholder={f.placeholder}
-                      className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-[#0A2647] placeholder-gray-400 focus:border-[#2C74B3] focus:outline-none transition-colors" />
-                  </div>
-                ))}
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-2">Additional Notes</label>
-                  <textarea value={notes} onChange={e => setNotes(e.target.value)}
-                    placeholder="Describe your symptoms or concerns..." rows={3}
-                    className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-[#0A2647] placeholder-gray-400 focus:border-[#2C74B3] focus:outline-none transition-colors resize-none" />
-                </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">Additional Notes (optional)</label>
+                <textarea value={notes} onChange={e => setNotes(e.target.value)}
+                  placeholder="Describe your symptoms or concerns..." rows={3}
+                  className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-[#0A2647] placeholder-gray-400 focus:border-[#2C74B3] focus:outline-none transition-colors resize-none" />
               </div>
             </div>
           )}
 
-          {/* Step 5: Confirm */}
-          {step === 4 && (
+          {/* Step 4: Confirm */}
+          {step === 3 && (
             <div>
               <h2 className="text-2xl font-bold text-[#0A2647] mb-6 flex items-center gap-2">
                 <i className="bi bi-check-circle-fill text-[#2A9D8F]" /> Confirm Appointment
               </h2>
               <div className="bg-[#F8FAFC] rounded-xl p-6 space-y-3 mb-6 border border-gray-100">
                 {[
-                  ["Department", dept],
-                  ["Doctor", doctor],
+                  ["Department", deptName],
+                  ["Doctor", doctorName],
                   ["Date", date],
                   ["Time", time],
-                  ["Patient", name],
-                  ["Email", email],
-                  ["Phone", phone],
+                  ...(notes ? [["Notes", notes]] : []),
                 ].map(([k, v]) => (
                   <div key={k} className="flex justify-between py-1">
                     <span className="text-gray-500 text-sm">{k}</span>
@@ -267,8 +323,8 @@ export default function AppointmentPage() {
               <i className="bi bi-arrow-left" /> Back
             </button>
             {step < steps.length - 1 && (
-              <button onClick={next}
-                className="px-8 py-2.5 bg-[#2C74B3] text-white rounded-xl font-semibold hover:bg-[#0A2647] transition-all flex items-center gap-2">
+              <button onClick={next} disabled={!canNext}
+                className="px-8 py-2.5 bg-[#2C74B3] text-white rounded-xl font-semibold hover:bg-[#0A2647] transition-all flex items-center gap-2 disabled:opacity-50">
                 Next <i className="bi bi-arrow-right" />
               </button>
             )}

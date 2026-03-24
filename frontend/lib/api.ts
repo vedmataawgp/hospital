@@ -304,18 +304,18 @@ export const api = {
   /* ── Appointments ────────────────────────────────────────────── */
   appointments: {
     list: (filters?: Record<string, string>) =>
-      request<Appointment[]>(`/appointments/${toQuery(filters as Record<string, unknown>)}`),
+      request<PaginatedResponse<Appointment>>(`/appointments/${toQuery(filters as Record<string, unknown>)}`),
     create: (payload: CreateAppointmentPayload) =>
       request<Appointment>("/appointments/", {
         method: "POST",
         body: JSON.stringify({
-          ...payload,
-          patient_name: sanitise(payload.patient_name),
-          patient_email: sanitise(payload.patient_email),
-          patient_phone: sanitise(payload.patient_phone),
+          doctorId: payload.doctorId,
+          date: payload.date,
+          time: payload.time,
           notes: payload.notes ? sanitise(payload.notes) : undefined,
         }),
       }),
+    get: (id: number) => request<Appointment>(`/appointments/${id}/`),
     cancel: (id: number) =>
       request<void>(`/appointments/${id}/cancel/`, { method: "POST" }),
   },
@@ -354,12 +354,13 @@ export const api = {
     dashboard: () => request<DoctorDashboardData>("/doctor/dashboard/"),
     patients: () => request<Patient[]>("/doctor/patients/"),
     prescriptions: () => request<Prescription[]>("/doctor/prescriptions/"),
-    savePrescription: (patientName: string, notes: string) =>
+    savePrescription: (patientId: number, notes: string, diagnosis?: string) =>
       request<Prescription>("/doctor/prescriptions/", {
         method: "POST",
         body: JSON.stringify({
-          patient_name: sanitise(patientName),
+          patient_id: patientId,
           notes: sanitise(notes),
+          diagnosis: diagnosis ? sanitise(diagnosis) : undefined,
         }),
       }),
   },
@@ -369,7 +370,7 @@ export const api = {
     overview: () => request<AdminOverview>("/admin/overview/"),
     doctors: () => request<Doctor[]>("/admin/doctors/"),
     patients: () => request<Patient[]>("/admin/patients/"),
-    appointments: () => request<Appointment[]>("/admin/appointments/"),
+    appointments: () => request<PaginatedResponse<Appointment>>("/admin/appointments/"),
     addDoctor: (data: Partial<Doctor>) =>
       request<Doctor>("/admin/doctors/", {
         method: "POST",

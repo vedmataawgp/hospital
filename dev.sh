@@ -1,41 +1,44 @@
 #!/bin/bash
+# dev.sh — Start both backend and frontend for MediCare Hospital
+# Uses uv (already installed) with the workspace-level pyproject.toml.
+# No separate venv needed: uv uses .pythonlibs at the workspace root.
 
-# dev.sh - Automated Daily Run for MediCare Hospital
-# This script ensures uv is installed and then starts both servers.
+set -e
 
-echo -e "\033[0;36mChecking for uv...\033[0m"
-if ! command -v uv &> /dev/null
-then
-    echo -e "\033[0;33muv not found, installing via pip...\033[0m"
-    pip install uv
-    
-    # Try adding typical Windows Python user-scripts to PATH for current session
-    export PATH="$PATH:$HOME/AppData/Local/Packages/PythonSoftwareFoundation.Python.3.13_qbz5n2kfra8p0/LocalCache/local-packages/Python313/Scripts"
-fi
+REPO_ROOT="$(cd "$(dirname "$0")" && pwd)"
 
-# Ensure uv is now available
-if ! command -v uv &> /dev/null
-then
-    echo -e "\033[0;31mError: uv is not in your PATH. Please restart your terminal.\033[0m"
+echo "[1/4] Checking uv..."
+if ! command -v uv &>/dev/null; then
+    echo "ERROR: uv not found. Run: pip install uv" >&2
     exit 1
 fi
+echo "      uv $(uv --version) — OK"
 
-echo -e "\033[0;36mSetting up backend...\033[0m"
-cd artifacts/api-server
-uv venv &> /dev/null
-source .venv/Scripts/activate &> /dev/null || source .venv/bin/activate &> /dev/null
-uv pip install -r requirements.txt
-uv run python manage.py migrate
-# Seed users (only first time, but safe to pipe)
-cat seed_users.py | uv run python manage.py shell &> /dev/null
+echo "[2/4] Running Django migrations..."
+cd "$REPO_ROOT/artifacts/api-server"
+uv run python manage.py migrate --no-input
 
-# Start Backend in background (or new window if possible, but standard bash is bg)
-echo -e "\033[0;32mStarting Backend on port 8080...\033[0m"
+echo "[3/4] Seeding initial users (safe to run multiple times)..."
+uv run python manage.py shell < seed_users.py 2>/dev/null || true
+
+echo ""
+echo "  Backend  → http://localhost:8080"
+echo "  Frontend → http://localhost:5000"
+echo ""
+
+# Start backend in the background
+echo "[4/4] Starting backend (port 8080)..."
 uv run python manage.py runserver 0.0.0.0:8080 &
+BACKEND_PID=$!
 
-echo -e "\033[0;36mSetting up frontend...\033[0m"
-cd ../../frontend
-npm install
+# Give Django a moment to start
+sleep 2
 
-echo -e "\033[0;32mStarting Frontend on port 5000...\033[0m"
+# Start frontend in the foreground (CTRL+C stops both)
+echo "      Starting frontend (port 5000)..."
+cd "$REPO_ROOT/frontend"
+npm install --silent
 npm run dev
+
+# Clean up backend on exit
+kill "$BACKEND_PID" 2>/dev/null || true

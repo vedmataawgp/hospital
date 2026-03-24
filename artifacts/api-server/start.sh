@@ -9,8 +9,14 @@ export PYTHONPATH=/home/runner/workspace/artifacts/api-server
 echo "Running Django migrations..."
 uv run python manage.py migrate --no-input
 
-echo "Collecting static files..."
-uv run python manage.py collectstatic --no-input --clear 2>/dev/null || true
+echo "Seeding initial users (skips if already exist)..."
+uv run python manage.py shell < seed_users.py 2>/dev/null || true
+
+# Only collect static files when not already present or forced
+if [ ! -d "staticfiles/admin" ] || [ "${FORCE_COLLECTSTATIC:-}" = "1" ]; then
+    echo "Collecting static files..."
+    uv run python manage.py collectstatic --no-input 2>/dev/null || true
+fi
 
 WORKERS=${GUNICORN_WORKERS:-2}
 PORT=${PORT:-8080}

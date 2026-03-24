@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     'apps.reports',
     'apps.notifications',
     'apps.chat',
+    'apps.admin_dashboard',
 ]
 
 MIDDLEWARE = [
@@ -155,7 +156,10 @@ CORS_ALLOW_HEADERS = [
 # ── CSRF ──────────────────────────────────────────────────────────────────────
 CSRF_TRUSTED_ORIGINS = [
     'http://localhost',
+    'http://localhost:5000',
+    'http://localhost:8080',
     'https://*.replit.dev',
+    'https://*.riker.replit.dev',
     'https://*.kirk.replit.dev',
     'https://*.replit.app',
 ]
