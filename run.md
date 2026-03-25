@@ -65,12 +65,22 @@ DJANGO_DEBUG=True
 ## Python Environment
 
 **Single environment only** — `uv` manages all packages via `pyproject.toml` at the  
-workspace root. No `.venv` folder is created inside `artifacts/api-server`.
+workspace root. **Do NOT** create or use a `.venv` folder inside `artifacts/api-server/`.
 
-To troubleshoot:
+If you run from a subdirectory, use `uv run` to automatically locate the root environment:
 ```bash
-uv sync          # re-sync all dependencies from pyproject.toml
+cd artifacts/api-server
+uv run python manage.py runserver
 ```
+
+---
+
+## Database
+
+The development database is located at:
+`artifacts/api-server/db.sqlite3`
+
+Always run migrations from the `artifacts/api-server` directory using the root environment.
 
 ---
 
@@ -78,7 +88,8 @@ uv sync          # re-sync all dependencies from pyproject.toml
 
 | Problem | Fix |
 |---------|-----|
-| Backend won't start | `cd artifacts/api-server && uv run python manage.py check` |
+| Backend won't start | Check for a redundant `.venv` inside `artifacts/api-server` and DELETE it. |
+| Port in use | `npx kill-port 8080 5000` |
 | No test users | `cd artifacts/api-server && uv run python manage.py shell < seed_users.py` |
-| Frontend build error | `cd frontend && rm -rf .next && npm run dev` |
 | Migration error | `cd artifacts/api-server && uv run python manage.py migrate --run-syncdb` |
+

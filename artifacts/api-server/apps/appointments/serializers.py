@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import Appointment, Prescription
+from .models import Appointment, Prescription, ConsultationMessage
+
 
 
 class AppointmentSerializer(serializers.ModelSerializer):
@@ -36,3 +37,13 @@ class PrescriptionSerializer(serializers.ModelSerializer):
             'medication', 'dosage', 'frequency', 'duration', 'instructions',
             'created_at',
         ]
+
+
+class ConsultationMessageSerializer(serializers.ModelSerializer):
+    senderName = serializers.CharField(source='sender.name', read_only=True)
+    createdAt = serializers.DateTimeField(source='created_at', format='%Y-%m-%dT%H:%M:%S.%fZ', read_only=True)
+
+    class Meta:
+        model = ConsultationMessage
+        fields = ['id', 'text', 'senderName', 'createdAt']
+

@@ -48,12 +48,18 @@ def register(request):
 @api_view(['POST'])
 @permission_classes([AllowAny])
 def login(request):
-    serializer = LoginSerializer(data=request.data)
-    if serializer.is_valid():
-        user = serializer.validated_data['user']
-        token = get_tokens_for_user(user)
-        return Response({'token': token, 'user': UserSerializer(user, context={'request': request}).data})
-    return Response({'error': 'Unauthorized', 'message': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+    try:
+        serializer = LoginSerializer(data=request.data)
+        if serializer.is_valid():
+            user = serializer.validated_data['user']
+            token = get_tokens_for_user(user)
+            return Response({'token': token, 'user': UserSerializer(user, context={'request': request}).data})
+        return Response({'error': 'Unauthorized', 'message': 'Invalid credentials'}, status=status.HTTP_401_UNAUTHORIZED)
+    except Exception as e:
+        with open('login_debug.log', 'a') as f:
+            import traceback
+            f.write(f"\n--- Exception at {timezone.now()} ---\n{str(e)}\n{traceback.format_exc()}\n")
+        raise e
 
 
 @api_view(['GET'])
@@ -184,15 +190,48 @@ def contact(request):
 @permission_classes([IsAuthenticated])
 def consultations(request):
     from apps.appointments.models import Appointment
-    from apps.appointments.serializers import AppointmentSerializer
     if request.method == 'GET':
-        return Response([])
+        # Return appointments that currently have active consultation chats
+        role = request.user.role
+        qs = Appointment.objects.select_related('doctor__user', 'patient__user')
+        if role == 'patient':
+            qs = qs.filter(patient__user=request.user)
+        elif role == 'doctor':
+            qs = qs.filter(doctor__user=request.user)
+        
+        # In a real app, we might filter by status. For now, we return all relevant appointments.
+        data = []
+        for appt in qs:
+            data.append({
+                'id': appt.id,
+                'appointment_id': appt.id,
+                'doctor': appt.doctor.user.name,
+                'patient': appt.patient.user.name,
+                'date': appt.date,
+                'time': appt.time,
+                'status': appt.status,
+            })
+        return Response(data)
+
     appointment_id = request.data.get('appointment_id')
     if not appointment_id:
         return Response({'error': 'appointment_id required'}, status=400)
     try:
-        appt = Appointment.objects.get(id=appointment_id)
-        return Response({'id': appt.id, 'appointment_id': appt.id, 'doctor': appt.doctor.user.name, 'patient': appt.patient.user.name})
+        appt = Appointment.objects.select_related('doctor__user', 'patient__user').get(id=appointment_id)
+        # Check permissions
+        if request.user.role == 'patient' and appt.patient.user != request.user:
+            return Response({'error': 'Forbidden'}, status=403)
+        if request.user.role == 'doctor' and appt.doctor.user != request.user:
+            return Response({'error': 'Forbidden'}, status=403)
+
+        return Response({
+            'id': appt.id,
+            'appointment_id': appt.id,
+            'doctor': appt.doctor.user.name,
+            'patient': appt.patient.user.name,
+            'date': appt.date,
+            'time': appt.time,
+        })
     except Appointment.DoesNotExist:
         return Response({'error': 'Appointment not found'}, status=404)
 
@@ -200,14 +239,32 @@ def consultations(request):
 @api_view(['GET', 'POST'])
 @permission_classes([IsAuthenticated])
 def consultation_messages(request, pk):
+    from apps.appointments.models import Appointment, ConsultationMessage
+    from apps.appointments.serializers import ConsultationMessageSerializer
+    
+    try:
+        appt = Appointment.objects.get(id=pk)
+    except Appointment.DoesNotExist:
+        return Response({'error': 'Appointment not found'}, status=404)
+
+    # Permission check: must be the doctor or patient of the appointment
+    if request.user.role == 'patient' and appt.patient.user != request.user:
+        return Response({'error': 'Forbidden'}, status=403)
+    if request.user.role == 'doctor' and appt.doctor.user != request.user:
+        return Response({'error': 'Forbidden'}, status=403)
+
     if request.method == 'GET':
-        return Response([])
+        messages = ConsultationMessage.objects.filter(appointment=appt).order_by('created_at')
+        return Response(ConsultationMessageSerializer(messages, many=True).data)
+
     text = request.data.get('text', '').strip()
     if not text:
         return Response({'error': 'text required'}, status=400)
-    return Response({
-        'id': 1,
-        'text': text,
-        'sender': request.user.name,
-        'created_at': timezone.now().isoformat(),
-    }, status=201)
+
+    msg = ConsultationMessage.objects.create(
+        appointment=appt,
+        sender=request.user,
+        text=text
+    )
+    return Response(ConsultationMessageSerializer(msg).data, status=201)
+

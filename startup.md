@@ -129,20 +129,34 @@ All pages are served on **port 5000**. Replace the host with your Replit preview
 
 ## How to Run
 
-### Start the Frontend (Next.js)
+### Start the Full System (Recommended)
+You can start both backend and frontend with a single command:
+```powershell
+.\dev.ps1      # Windows (Auto-sets root .venv)
+```
+```bash
+./dev.sh       # Linux/macOS (Auto-sets root .venv)
+```
+
+### Manual Run
+> **Note**: Always use the virtual environment located at the **project root** (`.venv`). Do NOT create or use a venv inside `artifacts/api-server/`.
+
+**Backend (Django):**
+```bash
+cd artifacts/api-server
+# Root venv is used via uv or relative path
+uv run python manage.py migrate
+uv run python manage.py runserver 0.0.0.0:8080
+```
+
+**Frontend (Next.js):**
 ```bash
 cd frontend
 npm install
 npm run dev          # starts on port 5000
 ```
 
-### Start the Backend (Django)
-```bash
-cd artifacts/api-server
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py runserver 0.0.0.0:8080
-```
+
 
 The frontend proxies all `/api/*` requests to `http://localhost:8080` via Next.js rewrites (configured in `frontend/next.config.ts`).
 

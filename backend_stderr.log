@@ -1,0 +1,119 @@
+Watching for file changes with StatReloader
+[2026-03-26 01:31:13,328] INFO django.utils.autoreload Watching for file changes with StatReloader
+E:\Divy\Projects\GitHub\hospital\artifacts\api-server\apps\accounts\views.py changed, reloading.
+[2026-03-26 01:31:49,680] INFO django.utils.autoreload E:\Divy\Projects\GitHub\hospital\artifacts\api-server\apps\accounts\views.py changed, reloading.
+Watching for file changes with StatReloader
+[2026-03-26 01:31:50,614] INFO django.utils.autoreload Watching for file changes with StatReloader
+[2026-03-26 01:36:14,346] ERROR django.request Internal Server Error: /api/auth/login
+Traceback (most recent call last):
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\utils\deprecation.py", line 311, in __call__
+    response = self.process_response(request, response)
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\middleware\common.py", line 109, in process_response
+    self.get_full_path_with_slash(request)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\middleware\common.py", line 87, in get_full_path_with_slash
+    raise RuntimeError(
+    ...<9 lines>...
+    )
+RuntimeError: You called this URL via POST, but the URL doesn't end in a slash and you have APPEND_SLASH set. Django can't redirect to the slash URL while maintaining POST data. Change your form to point to 127.0.0.1:8080/api/auth/login/ (note the trailing slash), or set APPEND_SLASH=False in your Django settings.
+[26/Mar/2026 01:36:14] "POST /api/auth/login HTTP/1.1" 500 76544
+[2026-03-26 01:36:31,370] ERROR django.request Internal Server Error: /api/auth/login
+Traceback (most recent call last):
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\utils\deprecation.py", line 311, in __call__
+    response = self.process_response(request, response)
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\middleware\common.py", line 109, in process_response
+    self.get_full_path_with_slash(request)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\middleware\common.py", line 87, in get_full_path_with_slash
+    raise RuntimeError(
+    ...<9 lines>...
+    )
+RuntimeError: You called this URL via POST, but the URL doesn't end in a slash and you have APPEND_SLASH set. Django can't redirect to the slash URL while maintaining POST data. Change your form to point to 127.0.0.1:8080/api/auth/login/ (note the trailing slash), or set APPEND_SLASH=False in your Django settings.
+[26/Mar/2026 01:36:31] "POST /api/auth/login HTTP/1.1" 500 76544
+[2026-03-26 01:36:58,614] ERROR django.request Internal Server Error: /api/auth/login
+Traceback (most recent call last):
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\utils\deprecation.py", line 311, in __call__
+    response = self.process_response(request, response)
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\middleware\common.py", line 109, in process_response
+    self.get_full_path_with_slash(request)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\middleware\common.py", line 87, in get_full_path_with_slash
+    raise RuntimeError(
+    ...<9 lines>...
+    )
+RuntimeError: You called this URL via POST, but the URL doesn't end in a slash and you have APPEND_SLASH set. Django can't redirect to the slash URL while maintaining POST data. Change your form to point to 127.0.0.1:8080/api/auth/login/ (note the trailing slash), or set APPEND_SLASH=False in your Django settings.
+[26/Mar/2026 01:36:58] "POST /api/auth/login HTTP/1.1" 500 78955
+[2026-03-26 01:36:58,946] ERROR django.request Internal Server Error: /api/auth/login
+Traceback (most recent call last):
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\utils\deprecation.py", line 311, in __call__
+    response = self.process_response(request, response)
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\middleware\common.py", line 109, in process_response
+    self.get_full_path_with_slash(request)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\middleware\common.py", line 87, in get_full_path_with_slash
+    raise RuntimeError(
+    ...<9 lines>...
+    )
+RuntimeError: You called this URL via POST, but the URL doesn't end in a slash and you have APPEND_SLASH set. Django can't redirect to the slash URL while maintaining POST data. Change your form to point to 127.0.0.1:8080/api/auth/login/ (note the trailing slash), or set APPEND_SLASH=False in your Django settings.
+[26/Mar/2026 01:36:58] "POST /api/auth/login HTTP/1.1" 500 78955
+[2026-03-26 01:36:59,583] ERROR django.request Internal Server Error: /api/auth/login
+Traceback (most recent call last):
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\utils\deprecation.py", line 311, in __call__
+    response = self.process_response(request, response)
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\middleware\common.py", line 109, in process_response
+    self.get_full_path_with_slash(request)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\middleware\common.py", line 87, in get_full_path_with_slash
+    raise RuntimeError(
+    ...<9 lines>...
+    )
+RuntimeError: You called this URL via POST, but the URL doesn't end in a slash and you have APPEND_SLASH set. Django can't redirect to the slash URL while maintaining POST data. Change your form to point to 127.0.0.1:8080/api/auth/login/ (note the trailing slash), or set APPEND_SLASH=False in your Django settings.
+[26/Mar/2026 01:36:59] "POST /api/auth/login HTTP/1.1" 500 78955
+[2026-03-26 01:37:01,131] ERROR django.request Internal Server Error: /api/auth/login
+Traceback (most recent call last):
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\utils\deprecation.py", line 311, in __call__
+    response = self.process_response(request, response)
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\middleware\common.py", line 109, in process_response
+    self.get_full_path_with_slash(request)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\middleware\common.py", line 87, in get_full_path_with_slash
+    raise RuntimeError(
+    ...<9 lines>...
+    )
+RuntimeError: You called this URL via POST, but the URL doesn't end in a slash and you have APPEND_SLASH set. Django can't redirect to the slash URL while maintaining POST data. Change your form to point to 127.0.0.1:8080/api/auth/login/ (note the trailing slash), or set APPEND_SLASH=False in your Django settings.
+[26/Mar/2026 01:37:01] "POST /api/auth/login HTTP/1.1" 500 78955
+[2026-03-26 01:37:08,340] ERROR django.request Internal Server Error: /api/auth/login
+Traceback (most recent call last):
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\core\handlers\exception.py", line 55, in inner
+    response = get_response(request)
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\utils\deprecation.py", line 311, in __call__
+    response = self.process_response(request, response)
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\middleware\common.py", line 109, in process_response
+    self.get_full_path_with_slash(request)
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^
+  File "E:\Divy\Projects\GitHub\hospital\.venv\Lib\site-packages\django\middleware\common.py", line 87, in get_full_path_with_slash
+    raise RuntimeError(
+    ...<9 lines>...
+    )
+RuntimeError: You called this URL via POST, but the URL doesn't end in a slash and you have APPEND_SLASH set. Django can't redirect to the slash URL while maintaining POST data. Change your form to point to 127.0.0.1:8080/api/auth/login/ (note the trailing slash), or set APPEND_SLASH=False in your Django settings.
+[26/Mar/2026 01:37:08] "POST /api/auth/login HTTP/1.1" 500 76544
+E:\Divy\Projects\GitHub\hospital\artifacts\api-server\config\settings.py changed, reloading.
+[2026-03-26 01:37:20,331] INFO django.utils.autoreload E:\Divy\Projects\GitHub\hospital\artifacts\api-server\config\settings.py changed, reloading.
+Watching for file changes with StatReloader
+[2026-03-26 01:37:21,150] INFO django.utils.autoreload Watching for file changes with StatReloader
+E:\Divy\Projects\GitHub\hospital\artifacts\api-server\apps\accounts\urls.py changed, reloading.
+[2026-03-26 01:37:32,833] INFO django.utils.autoreload E:\Divy\Projects\GitHub\hospital\artifacts\api-server\apps\accounts\urls.py changed, reloading.
+Watching for file changes with StatReloader
+[2026-03-26 01:37:33,723] INFO django.utils.autoreload Watching for file changes with StatReloader

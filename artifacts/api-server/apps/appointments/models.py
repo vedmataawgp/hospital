@@ -43,3 +43,18 @@ class Prescription(models.Model):
 
     def __str__(self):
         return f'{self.medication} for {self.patient} by Dr.{self.doctor}'
+
+
+class ConsultationMessage(models.Model):
+    appointment = models.ForeignKey(Appointment, on_delete=models.CASCADE, related_name='consultation_messages')
+    sender = models.ForeignKey('accounts.User', on_delete=models.CASCADE)
+    text = models.TextField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'consultation_messages'
+        ordering = ['created_at']
+
+    def __str__(self):
+        return f'{self.sender.name}: {self.text[:50]}'
+
