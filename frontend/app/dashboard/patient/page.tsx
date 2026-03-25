@@ -2,6 +2,7 @@
 import { useState, useCallback } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
+import AuthGuard from "@/components/AuthGuard";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import ApiError from "@/components/ApiError";
@@ -47,6 +48,7 @@ export default function PatientDashboard() {
   const invoices: Invoice[]     = invs.data ?? [];
 
   return (
+    <AuthGuard allowedRoles={["patient"]}>
     <div className="min-h-screen flex flex-col bg-[#F8FAFC]">
       <Navbar />
       <div className="flex flex-1 max-w-7xl mx-auto w-full px-4 py-8 gap-8">
@@ -308,5 +310,6 @@ export default function PatientDashboard() {
         </main>
       </div>
     </div>
+    </AuthGuard>
   );
 }

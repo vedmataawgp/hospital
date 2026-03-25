@@ -1,0 +1,143 @@
+### 🚀 Full Application Flow & Security Testing Prompt
+
+Analyze and validate the complete end-to-end flow of the healthcare web application, ensuring proper role-based access, navigation consistency, and security controls.
+
+---
+
+## 🔹 1. Public (Without Login) Flow
+
+Verify that a normal (unauthenticated) user can:
+
+* Access Home Page
+* Browse Doctors Section
+* View Departments
+* View Contact Page
+* View basic Consultation information
+
+❗ But ensure:
+
+* User **CANNOT**:
+
+  * Book appointments
+  * Access dashboard pages
+  * Perform any protected actions
+* If trying to access protected routes via URL → user should be:
+
+  * Redirected to Login page OR
+  * Shown "Unauthorized Access"
+
+---
+
+## 🔹 2. Authentication Flow
+
+* Test Sign Up / Sign In
+* Ensure session/token is properly created
+* On logout → all protected routes must be blocked again
+
+---
+
+## 🔹 3. Patient Flow (After Login)
+
+After login as **Patient**:
+
+### Allowed:
+
+* Search Doctors
+* View Doctor Profiles
+* Book Appointments
+* View Appointments
+* Access Consultation features
+* Chat with doctors (if available)
+
+### Restrictions:
+
+* Cannot access doctor-only features
+* Cannot modify doctor data
+
+### Navbar:
+
+* Should change dynamically
+* Show: Dashboard, Appointments, Profile, Logout
+
+---
+
+## 🔹 4. Doctor Flow (After Login)
+
+After login as **Doctor**:
+
+### Allowed:
+
+* View Appointments
+* Manage Schedule
+* Accept/Reject Appointments
+* Handle Patient Consultations
+* Access Doctor Dashboard
+
+### Restrictions:
+
+* Cannot access patient-specific features like booking
+
+### Navbar:
+
+* Must be DIFFERENT from patient navbar
+* Show: Dashboard, Appointments, Patients, Schedule, Logout
+
+---
+
+## 🔹 5. Navigation Flow Validation
+
+* Ensure all pages are accessible through proper navigation (NOT just direct links)
+* No broken routes
+* No pages working ONLY via pasted URL
+* All buttons and links must lead correctly
+
+---
+
+## 🔹 6. Security & Route Protection
+
+Test for:
+
+* Direct URL access (critical):
+
+  * Try opening protected routes without login
+  * Try accessing doctor routes as patient
+  * Try accessing patient routes as doctor
+
+✅ Expected:
+
+* Proper role-based guards
+* Redirect or access denial
+
+---
+
+## 🔹 7. API Integration Check
+
+* Ensure frontend actions correctly hit APIs
+* No API works without authentication where required
+* Validate role-based API restrictions
+
+---
+
+## 🔹 8. Edge Cases
+
+* Expired session handling
+* Back button after logout
+* Multiple tab access
+* Invalid tokens
+
+---
+
+## 🎯 Goal
+
+Ensure:
+
+* Seamless user flow
+* Proper role-based navigation
+* No security loopholes
+* No route access via direct URL bypass
+
+---
+
+## ⚠️ Key Issue to Fix
+
+> Some pages are accessible via direct link but not through flow → Fix route guards and navigation consistency.

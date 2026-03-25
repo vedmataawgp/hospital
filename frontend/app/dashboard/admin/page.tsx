@@ -1,6 +1,7 @@
 "use client";
 import { useState, useCallback } from "react";
 import Navbar from "@/components/Navbar";
+import AuthGuard from "@/components/AuthGuard";
 import { api } from "@/lib/api";
 import { useApi } from "@/lib/useApi";
 import ApiError from "@/components/ApiError";
@@ -50,6 +51,7 @@ export default function AdminDashboard() {
   ];
 
   return (
+    <AuthGuard allowedRoles={["admin"]}>
     <div className="min-h-screen bg-[#F8FAFC]">
       <Navbar />
       <div className="flex">
@@ -299,5 +301,6 @@ export default function AdminDashboard() {
         </main>
       </div>
     </div>
+    </AuthGuard>
   );
 }

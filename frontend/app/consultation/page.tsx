@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import Navbar from "@/components/Navbar";
+import AuthGuard from "@/components/AuthGuard";
 import { api, tokenStore, userStore } from "@/lib/api";
 import Link from "next/link";
 
@@ -148,6 +149,7 @@ export default function ConsultationPage() {
   }
 
   return (
+    <AuthGuard>
     <div className="min-h-screen flex flex-col bg-[#F8FAFC]">
       <Navbar />
       <div className="flex-1 container mx-auto px-4 py-10 max-w-4xl">
@@ -238,5 +240,6 @@ export default function ConsultationPage() {
         </div>
       </div>
     </div>
+    </AuthGuard>
   );
 }

@@ -1,6 +1,7 @@
 "use client";
 import { useState, useCallback } from "react";
 import Navbar from "@/components/Navbar";
+import AuthGuard from "@/components/AuthGuard";
 import { api } from "@/lib/api";
 import { useApi, useMutation } from "@/lib/useApi";
 import ApiError from "@/components/ApiError";
@@ -56,6 +57,7 @@ export default function DoctorDashboard() {
   const doctorName = dash.data?.doctor?.name ?? "Doctor";
 
   return (
+    <AuthGuard allowedRoles={["doctor"]}>
     <div className="min-h-screen bg-[#F8FAFC]">
       <Navbar />
       <div className="max-w-7xl mx-auto px-4 py-8">
@@ -248,5 +250,6 @@ export default function DoctorDashboard() {
         )}
       </div>
     </div>
+    </AuthGuard>
   );
 }

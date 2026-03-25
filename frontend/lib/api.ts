@@ -42,15 +42,32 @@ export interface ChatConversation {
 /* ── Token storage (sessionStorage scoped to tab, cleared on close) ─── */
 const TOKEN_KEY = "mc_access_token";
 
+function setCookie(name: string, value: string, days = 1): void {
+  if (typeof document === "undefined") return;
+  const expires = new Date(Date.now() + days * 864e5).toUTCString();
+  document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
+}
+
+function clearCookie(name: string): void {
+  if (typeof document === "undefined") return;
+  document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 GMT; path=/; SameSite=Lax`;
+}
+
 export const tokenStore = {
   get: (): string | null => {
     try { return sessionStorage.getItem(TOKEN_KEY); } catch { return null; }
   },
   set: (token: string): void => {
-    try { sessionStorage.setItem(TOKEN_KEY, token); } catch {}
+    try {
+      sessionStorage.setItem(TOKEN_KEY, token);
+      setCookie("mc_access_token", token);
+    } catch {}
   },
   clear: (): void => {
-    try { sessionStorage.removeItem(TOKEN_KEY); } catch {}
+    try {
+      sessionStorage.removeItem(TOKEN_KEY);
+      clearCookie("mc_access_token");
+    } catch {}
   },
 };
 
@@ -63,10 +80,16 @@ export const userStore = {
     } catch { return null; }
   },
   set: (user: UserBrief): void => {
-    try { sessionStorage.setItem(USER_KEY, JSON.stringify(user)); } catch {}
+    try {
+      sessionStorage.setItem(USER_KEY, JSON.stringify(user));
+      setCookie("mc_user_role", user.role);
+    } catch {}
   },
   clear: (): void => {
-    try { sessionStorage.removeItem(USER_KEY); } catch {}
+    try {
+      sessionStorage.removeItem(USER_KEY);
+      clearCookie("mc_user_role");
+    } catch {}
   },
 };
 

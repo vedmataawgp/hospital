@@ -4,6 +4,7 @@ import {
   useState, useEffect, useRef, useCallback, useMemo,
 } from "react";
 import Navbar from "@/components/Navbar";
+import AuthGuard from "@/components/AuthGuard";
 import { api, userStore, tokenStore } from "@/lib/api";
 import type { ChatConversation, ChatMsg, UserBrief } from "@/lib/api";
 
@@ -338,6 +339,7 @@ export default function ChatPage() {
      RENDER
   ═══════════════════════════════════════════════════════════ */
   return (
+    <AuthGuard>
     <>
       <style>{`
         @keyframes typingBounce {
@@ -677,5 +679,6 @@ export default function ChatPage() {
         </div>
       </div>
     </>
+    </AuthGuard>
   );
 }
