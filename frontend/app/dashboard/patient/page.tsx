@@ -1,10 +1,10 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
 import Navbar from "@/components/Navbar";
 import AuthGuard from "@/components/AuthGuard";
 import { api } from "@/lib/api";
-import { useApi } from "@/lib/useApi";
+import { useApi, useMutation } from "@/lib/useApi";
 import ApiError from "@/components/ApiError";
 import { SkeletonRow, SkeletonText } from "@/components/Skeleton";
 import type { Appointment, Invoice, Report } from "@/lib/types";
@@ -29,6 +29,19 @@ const statusClass: Record<string, string> = {
 export default function PatientDashboard() {
   const [active, setActive] = useState("Dashboard");
 
+  /* ── Profile form state ── */
+  const [pName,       setPName]       = useState("");
+  const [pEmail,      setPEmail]      = useState("");
+  const [pPhone,      setPPhone]      = useState("");
+  const [pAge,        setPAge]        = useState("");
+  const [pGender,     setPGender]     = useState("");
+  const [pAddress,    setPAddress]    = useState("");
+  const [pBlood,      setPBlood]      = useState("");
+  const [profSaved,   setProfSaved]   = useState("");
+  const [oldPwd,      setOldPwd]      = useState("");
+  const [newPwd,      setNewPwd]      = useState("");
+  const [pwdSaved,    setPwdSaved]    = useState("");
+
   const dashFetcher  = useCallback(() => api.patient.dashboard(), []);
   const aptFetcher   = useCallback(() => api.appointments.list(), []);
   const reportFetcher= useCallback(() => api.patient.reports(), []);
@@ -40,6 +53,42 @@ export default function PatientDashboard() {
   const reps   = useApi(active === "Reports"      ? reportFetcher : null);
   const invs   = useApi(active === "Billing"      ? invFetcher    : null);
   const prof   = useApi(active === "Profile"      ? profFetcher   : null);
+
+  /* populate form when profile loads */
+  useEffect(() => {
+    if (prof.data) {
+      setPName(prof.data.name ?? "");
+      setPEmail(prof.data.email ?? "");
+      setPPhone((prof.data as unknown as Record<string,string>).phone ?? "");
+      setPAge(String((prof.data as unknown as Record<string,string>).age ?? ""));
+      setPGender((prof.data as unknown as Record<string,string>).gender ?? "");
+      setPAddress((prof.data as unknown as Record<string,string>).address ?? "");
+      setPBlood((prof.data as unknown as Record<string,string>).bloodGroup ?? (prof.data as unknown as Record<string,string>).blood_group ?? "");
+    }
+  }, [prof.data]);
+
+  const updateMutator = useCallback(
+    () => api.patient.updateProfile({ name: pName, phone: pPhone, age: Number(pAge), gender: pGender, address: pAddress, bloodGroup: pBlood } as never),
+    [pName, pPhone, pAge, pGender, pAddress, pBlood],
+  );
+  const [updateProf, { loading: updatingProf, error: updateProfErr }] = useMutation(updateMutator);
+
+  const pwdMutator = useCallback(
+    () => api.auth.changePassword(oldPwd, newPwd),
+    [oldPwd, newPwd],
+  );
+  const [changePwd, { loading: changingPwd, error: pwdErr }] = useMutation(pwdMutator);
+
+  const handleSaveProfile = async () => {
+    const res = await updateProf();
+    if (res) { setProfSaved("Profile updated successfully!"); setTimeout(() => setProfSaved(""), 3000); }
+  };
+
+  const handleChangePwd = async () => {
+    if (!oldPwd || !newPwd) return;
+    const res = await changePwd();
+    if (res) { setPwdSaved("Password changed!"); setOldPwd(""); setNewPwd(""); setTimeout(() => setPwdSaved(""), 3000); }
+  };
 
   const allAppts: Appointment[]  = apts.data?.data ?? [];
   const upcoming: Appointment[] = allAppts.filter(a => ["confirmed","pending"].includes(String(a.status).toLowerCase()));
@@ -277,32 +326,127 @@ export default function PatientDashboard() {
 
           {/* ── Profile ──────────────────────────────────────────────── */}
           {active === "Profile" && (
-            <div>
-              <h1 className="text-3xl font-bold text-[#0A2647] mb-6">My Profile</h1>
-              {prof.error && <ApiError message={prof.error} onRetry={prof.refetch} compact />}
+            <div className="space-y-6">
+              <h1 className="text-3xl font-bold text-[#0A2647]">My Profile</h1>
+
+              {/* Personal information card */}
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-                {prof.loading
-                  ? <div className="space-y-4"><SkeletonText lines={6}/></div>
-                  : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      {[
-                        { label: "Full Name",      val: prof.data?.name ?? "John Patient" },
-                        { label: "Email",          val: prof.data?.email ?? "john@example.com" },
-                        { label: "Phone",          val: prof.data?.phone ?? "+1 (555) 123-4567" },
-                        { label: "Date of Birth",  val: prof.data?.date_of_birth ?? "1985-06-15" },
-                        { label: "Blood Group",    val: prof.data?.blood_group ?? "A+" },
-                        { label: "Allergies",      val: prof.data?.allergies ?? "None" },
-                      ].map(f => (
-                        <div key={f.label}>
-                          <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">{f.label}</label>
-                          <input defaultValue={f.val}
-                            className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-[#0A2647] focus:border-[#2C74B3] focus:outline-none transition-colors text-sm" />
-                        </div>
-                      ))}
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-gradient-to-br from-[#2C74B3] to-[#38BDF8] rounded-xl flex items-center justify-center">
+                    <i className="bi bi-person-fill text-white" />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-[#0A2647]">Personal Information</h2>
+                    <p className="text-gray-400 text-xs">Update your personal details</p>
+                  </div>
+                </div>
+
+                {prof.error && <ApiError message={prof.error} onRetry={prof.refetch} compact />}
+                {prof.loading ? (
+                  <div className="space-y-4"><SkeletonText lines={6} /></div>
+                ) : (
+                  <>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+                      {/* Name */}
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Full Name</label>
+                        <input value={pName} onChange={e => setPName(e.target.value)}
+                          className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-[#0A2647] focus:border-[#2C74B3] focus:outline-none transition-colors text-sm" />
+                      </div>
+                      {/* Email – read-only */}
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Email Address</label>
+                        <input value={pEmail} readOnly
+                          className="w-full border-2 border-gray-100 bg-gray-50 rounded-xl px-4 py-3 text-gray-400 text-sm cursor-not-allowed" />
+                      </div>
+                      {/* Phone */}
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Phone</label>
+                        <input value={pPhone} onChange={e => setPPhone(e.target.value)}
+                          className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-[#0A2647] focus:border-[#2C74B3] focus:outline-none transition-colors text-sm" />
+                      </div>
+                      {/* Age */}
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Age</label>
+                        <input value={pAge} onChange={e => setPAge(e.target.value)} type="number" min={0} max={150}
+                          className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-[#0A2647] focus:border-[#2C74B3] focus:outline-none transition-colors text-sm" />
+                      </div>
+                      {/* Gender */}
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Gender</label>
+                        <select value={pGender} onChange={e => setPGender(e.target.value)}
+                          className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-[#0A2647] focus:border-[#2C74B3] focus:outline-none transition-colors text-sm">
+                          <option value="">Select gender</option>
+                          <option value="male">Male</option>
+                          <option value="female">Female</option>
+                          <option value="other">Other</option>
+                        </select>
+                      </div>
+                      {/* Blood Group */}
+                      <div>
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Blood Group</label>
+                        <select value={pBlood} onChange={e => setPBlood(e.target.value)}
+                          className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-[#0A2647] focus:border-[#2C74B3] focus:outline-none transition-colors text-sm">
+                          <option value="">Select blood group</option>
+                          {["A+","A-","B+","B-","AB+","AB-","O+","O-"].map(bg => <option key={bg} value={bg}>{bg}</option>)}
+                        </select>
+                      </div>
+                      {/* Address – full width */}
+                      <div className="md:col-span-2">
+                        <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Address</label>
+                        <textarea value={pAddress} onChange={e => setPAddress(e.target.value)} rows={2}
+                          className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-[#0A2647] focus:border-[#2C74B3] focus:outline-none transition-colors text-sm resize-none" />
+                      </div>
                     </div>
-                  )}
-                <button className="mt-6 bg-[#2C74B3] text-white font-semibold px-6 py-3 rounded-xl hover:bg-[#0A2647] transition-all flex items-center gap-2">
-                  <i className="bi bi-check-circle-fill" /> Save Changes
+
+                    {updateProfErr && <p className="text-red-600 text-sm mb-3">{updateProfErr}</p>}
+                    {profSaved && (
+                      <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm flex items-center gap-2">
+                        <i className="bi bi-check-circle-fill" /> {profSaved}
+                      </div>
+                    )}
+                    <button onClick={handleSaveProfile} disabled={updatingProf}
+                      className="bg-[#2C74B3] text-white font-semibold px-6 py-3 rounded-xl hover:bg-[#0A2647] transition-all flex items-center gap-2 disabled:opacity-60">
+                      {updatingProf ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <i className="bi bi-check-circle-fill" />}
+                      Save Changes
+                    </button>
+                  </>
+                )}
+              </div>
+
+              {/* Change password card */}
+              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+                <div className="flex items-center gap-3 mb-6">
+                  <div className="w-10 h-10 bg-gradient-to-br from-[#E63946] to-[#f87171] rounded-xl flex items-center justify-center">
+                    <i className="bi bi-shield-lock-fill text-white" />
+                  </div>
+                  <div>
+                    <h2 className="font-bold text-[#0A2647]">Change Password</h2>
+                    <p className="text-gray-400 text-xs">Use a strong password you don&apos;t use elsewhere</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-6">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">Current Password</label>
+                    <input type="password" value={oldPwd} onChange={e => setOldPwd(e.target.value)}
+                      className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-[#0A2647] focus:border-[#2C74B3] focus:outline-none transition-colors text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2">New Password</label>
+                    <input type="password" value={newPwd} onChange={e => setNewPwd(e.target.value)}
+                      className="w-full border-2 border-gray-200 rounded-xl px-4 py-3 text-[#0A2647] focus:border-[#2C74B3] focus:outline-none transition-colors text-sm" />
+                  </div>
+                </div>
+                {pwdErr && <p className="text-red-600 text-sm mb-3">{pwdErr}</p>}
+                {pwdSaved && (
+                  <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-xl text-green-700 text-sm flex items-center gap-2">
+                    <i className="bi bi-check-circle-fill" /> {pwdSaved}
+                  </div>
+                )}
+                <button onClick={handleChangePwd} disabled={changingPwd || !oldPwd || !newPwd}
+                  className="bg-[#E63946] text-white font-semibold px-6 py-3 rounded-xl hover:bg-red-700 transition-all flex items-center gap-2 disabled:opacity-60">
+                  {changingPwd ? <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <i className="bi bi-key-fill" />}
+                  Change Password
                 </button>
               </div>
             </div>

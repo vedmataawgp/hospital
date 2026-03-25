@@ -341,3 +341,34 @@ def doctor_portal_prescriptions(request):
         instructions=instructions,
     )
     return Response(PrescriptionSerializer(prescription).data, status=201)
+
+
+@api_view(['GET', 'PATCH'])
+@permission_classes([IsAuthenticated])
+def doctor_portal_profile(request):
+    try:
+        doctor = Doctor.objects.select_related('user').get(user=request.user)
+    except Doctor.DoesNotExist:
+        return Response({'error': 'Doctor profile not found'}, status=404)
+
+    if request.method == 'GET':
+        return Response(DoctorSerializer(doctor).data)
+
+    data = request.data
+    # Update base user fields
+    user = doctor.user
+    if 'name' in data:
+        user.name = data['name']
+        user.save(update_fields=['name'])
+
+    # Update doctor-specific fields
+    for field in ['specialization', 'phone', 'bio', 'availability']:
+        if field in data:
+            setattr(doctor, field, data[field])
+    if 'experience' in data:
+        try:
+            doctor.experience = int(data['experience'])
+        except (ValueError, TypeError):
+            pass
+    doctor.save()
+    return Response(DoctorSerializer(doctor).data)

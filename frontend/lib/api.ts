@@ -377,6 +377,12 @@ export const api = {
     dashboard: () => request<DoctorDashboardData>("/doctor/dashboard/"),
     patients: () => request<Patient[]>("/doctor/patients/"),
     prescriptions: () => request<Prescription[]>("/doctor/prescriptions/"),
+    profile: () => request<Doctor>("/doctor/profile/"),
+    updateProfile: (data: Partial<Doctor & { experience: number }>) =>
+      request<Doctor>("/doctor/profile/", {
+        method: "PATCH",
+        body: JSON.stringify(data),
+      }),
     savePrescription: (patientId: number, notes: string, diagnosis?: string) =>
       request<Prescription>("/doctor/prescriptions/", {
         method: "POST",

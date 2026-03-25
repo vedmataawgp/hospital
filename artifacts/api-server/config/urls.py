@@ -51,6 +51,7 @@ urlpatterns = [
     path('api/doctor/dashboard/', __import__('apps.doctors.views', fromlist=['doctor_portal_dashboard']).doctor_portal_dashboard, name='doctor-portal-dashboard'),
     path('api/doctor/patients/', __import__('apps.doctors.views', fromlist=['doctor_portal_patients']).doctor_portal_patients, name='doctor-portal-patients'),
     path('api/doctor/prescriptions/', __import__('apps.doctors.views', fromlist=['doctor_portal_prescriptions']).doctor_portal_prescriptions, name='doctor-portal-prescriptions'),
+    path('api/doctor/profile/', __import__('apps.doctors.views', fromlist=['doctor_portal_profile']).doctor_portal_profile, name='doctor-portal-profile'),
 
     # Appointments
     path('api/appointments/', include('apps.appointments.urls')),
