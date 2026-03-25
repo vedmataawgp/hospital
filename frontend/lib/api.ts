@@ -340,7 +340,11 @@ export const api = {
       }),
     get: (id: number) => request<Appointment>(`/appointments/${id}/`),
     cancel: (id: number) =>
-      request<void>(`/appointments/${id}/cancel/`, { method: "POST" }),
+      request<Appointment>(`/appointments/${id}/cancel/`, { method: "POST" }),
+    confirm: (id: number) =>
+      request<Appointment>(`/appointments/${id}/confirm/`, { method: "POST" }),
+    contacts: () =>
+      request<UserBrief[]>("/chat/appointment-contacts/"),
   },
 
   /* ── Consultation / Chat ─────────────────────────────────────── */

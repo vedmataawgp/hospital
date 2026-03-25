@@ -6,6 +6,7 @@ from django.db.models import Q
 from .models import Conversation, ChatMessage
 from .serializers import ConversationSerializer, ChatMessageSerializer, UserBriefSerializer
 from apps.accounts.models import User
+from apps.appointments.models import Appointment
 
 
 @api_view(['GET'])
@@ -112,3 +113,58 @@ def search_users(request):
     users = users[:20]
     serializer = UserBriefSerializer(users, many=True)
     return Response(serializer.data)
+
+
+@api_view(['GET'])
+@permission_classes([IsAuthenticated])
+def appointment_contacts(request):
+    user = request.user
+    contact_users = []
+
+    if user.role == 'patient':
+        from apps.patients.models import Patient
+        try:
+            patient = Patient.objects.get(user=user)
+            appts = Appointment.objects.filter(
+                patient=patient,
+                status__in=['pending', 'confirmed', 'completed']
+            ).select_related('doctor__user').order_by('-created_at')
+            seen = set()
+            for a in appts:
+                if a.doctor.user_id not in seen:
+                    seen.add(a.doctor.user_id)
+                    contact_users.append({
+                        'id': a.doctor.user.id,
+                        'name': a.doctor.user.name,
+                        'email': a.doctor.user.email,
+                        'role': 'doctor',
+                        'appointment_status': a.status,
+                        'appointment_date': str(a.date),
+                    })
+        except Patient.DoesNotExist:
+            pass
+
+    elif user.role == 'doctor':
+        from apps.doctors.models import Doctor
+        try:
+            doctor = Doctor.objects.get(user=user)
+            appts = Appointment.objects.filter(
+                doctor=doctor,
+                status__in=['pending', 'confirmed', 'completed']
+            ).select_related('patient__user').order_by('-created_at')
+            seen = set()
+            for a in appts:
+                if a.patient.user_id not in seen:
+                    seen.add(a.patient.user_id)
+                    contact_users.append({
+                        'id': a.patient.user.id,
+                        'name': a.patient.user.name,
+                        'email': a.patient.user.email,
+                        'role': 'patient',
+                        'appointment_status': a.status,
+                        'appointment_date': str(a.date),
+                    })
+        except Doctor.DoesNotExist:
+            pass
+
+    return Response(contact_users)

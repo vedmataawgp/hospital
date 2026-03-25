@@ -1,6 +1,7 @@
 "use client";
 import { useState, useCallback, useEffect } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import AuthGuard from "@/components/AuthGuard";
 import { api } from "@/lib/api";
@@ -27,7 +28,10 @@ const statusClass: Record<string, string> = {
 };
 
 export default function PatientDashboard() {
+  const router = useRouter();
   const [active, setActive] = useState("Dashboard");
+  const [cancelledIds, setCancelledIds] = useState<Set<number>>(new Set());
+  const [cancellingId, setCancellingId] = useState<number | null>(null);
 
   /* ── Profile form state ── */
   const [pName,       setPName]       = useState("");
@@ -90,7 +94,26 @@ export default function PatientDashboard() {
     if (res) { setPwdSaved("Password changed!"); setOldPwd(""); setNewPwd(""); setTimeout(() => setPwdSaved(""), 3000); }
   };
 
-  const allAppts: Appointment[]  = apts.data?.data ?? [];
+  const handleCancelAppt = async (id: number) => {
+    setCancellingId(id);
+    try {
+      await api.appointments.cancel(id);
+      setCancelledIds(prev => new Set([...prev, id]));
+    } catch { /* ignore */ }
+    setCancellingId(null);
+  };
+
+  const handleChatWithDoctor = async (doctorUserId?: number) => {
+    if (doctorUserId) {
+      try { await api.chat.start(doctorUserId); } catch { /* ok */ }
+    }
+    router.push("/chat");
+  };
+
+  const rawAppts: Appointment[]  = apts.data?.data ?? [];
+  const allAppts = rawAppts.map(a =>
+    cancelledIds.has(a.id) ? { ...a, status: "cancelled" } : a
+  );
   const upcoming: Appointment[] = allAppts.filter(a => ["confirmed","pending"].includes(String(a.status).toLowerCase()));
   const past: Appointment[]     = allAppts.filter(a => ["completed","cancelled"].includes(String(a.status).toLowerCase()));
   const reports: Report[]       = reps.data ?? [];
@@ -197,8 +220,8 @@ export default function PatientDashboard() {
               {apts.error && <ApiError message={apts.error} onRetry={apts.refetch} compact />}
 
               {[
-                { title: "Upcoming", rows: upcoming },
-                { title: "Past Appointments", rows: past },
+                { title: "Upcoming", rows: upcoming, showActions: true },
+                { title: "Past Appointments", rows: past, showActions: false },
               ].map(section => (
                 <div key={section.title} className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6">
                   <div className="p-4 border-b border-gray-100">
@@ -211,28 +234,48 @@ export default function PatientDashboard() {
                         <table className="w-full">
                           <thead className="bg-[#F8FAFC]">
                             <tr>
-                              {["Doctor","Department","Date","Time","Status","Action"].map(h => (
+                              {["Doctor","Specialization","Date","Time","Status", ...(section.showActions ? ["Actions"] : [])].map(h => (
                                 <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
                               ))}
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-gray-50">
-                            {section.rows.map((a, i) => (
-                              <tr key={i} className="table-row">
+                            {section.rows.map((a) => (
+                              <tr key={a.id} className="table-row">
                                 <td className="px-4 py-4 font-semibold text-[#0A2647] text-sm">{a.doctorName}</td>
                                 <td className="px-4 py-4 text-gray-600 text-sm">{a.doctorSpecialization}</td>
                                 <td className="px-4 py-4 text-gray-600 text-sm">{a.date}</td>
                                 <td className="px-4 py-4 text-gray-600 text-sm">{a.time}</td>
                                 <td className="px-4 py-4">
-                                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusClass[a.status] ?? ""}`}>{a.status}</span>
+                                  <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusClass[a.status] ?? "badge-pending"}`}>{a.status}</span>
                                 </td>
-                                <td className="px-4 py-4">
-                                  <button className="text-[#E63946] text-xs hover:underline font-semibold">Cancel</button>
-                                </td>
+                                {section.showActions && (
+                                  <td className="px-4 py-4">
+                                    <div className="flex items-center gap-2">
+                                      <button
+                                        onClick={() => handleChatWithDoctor((a as Record<string,unknown>).doctorUserId as number | undefined)}
+                                        className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-100 text-[#2C74B3] hover:bg-blue-200 text-xs font-semibold transition-colors"
+                                      >
+                                        <i className="bi bi-chat-dots-fill" /> Chat
+                                      </button>
+                                      {String(a.status).toLowerCase() !== "cancelled" && (
+                                        <button
+                                          onClick={() => handleCancelAppt(a.id)}
+                                          disabled={cancellingId === a.id}
+                                          className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-red-50 text-red-600 hover:bg-red-100 text-xs font-semibold transition-colors disabled:opacity-50"
+                                        >
+                                          {cancellingId === a.id
+                                            ? <i className="bi bi-arrow-repeat animate-spin" />
+                                            : <i className="bi bi-x-circle" />} Cancel
+                                        </button>
+                                      )}
+                                    </div>
+                                  </td>
+                                )}
                               </tr>
                             ))}
                             {section.rows.length === 0 && (
-                              <tr><td colSpan={6} className="px-4 py-8 text-center text-gray-400 text-sm">No records</td></tr>
+                              <tr><td colSpan={section.showActions ? 6 : 5} className="px-4 py-8 text-center text-gray-400 text-sm">No records</td></tr>
                             )}
                           </tbody>
                         </table>

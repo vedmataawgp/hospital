@@ -7,4 +7,5 @@ urlpatterns = [
     path('conversations/<int:convo_id>/messages/', views.conversation_messages, name='chat-messages'),
     path('conversations/<int:convo_id>/send/', views.send_message, name='chat-send'),
     path('users/search/', views.search_users, name='chat-search-users'),
+    path('appointment-contacts/', views.appointment_contacts, name='chat-appointment-contacts'),
 ]

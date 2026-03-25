@@ -28,7 +28,16 @@ function initials(name: string) {
 }
 
 const REACTION_EMOJIS = ["❤️", "👍", "😂", "😮", "😢", "🙏"];
-const POLL_INTERVAL_MS = 3000;
+const POLL_INTERVAL_MS = 2000;
+
+interface ApptContact {
+  id: number;
+  name: string;
+  email: string;
+  role: string;
+  appointment_status: string;
+  appointment_date: string;
+}
 
 interface LocalMessage {
   tempId: string;
@@ -109,6 +118,8 @@ export default function ChatPage() {
   const [userSearch, setUserSearch] = useState("");
   const [searchResults, setSearchResults] = useState<UserBrief[]>([]);
   const [searchLoading, setSearchLoading] = useState(false);
+  const [apptContacts, setApptContacts] = useState<ApptContact[]>([]);
+  const [apptContactsLoading, setApptContactsLoading] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -208,6 +219,16 @@ export default function ChatPage() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, otherTyping]);
+
+  /* ── Load appointment contacts when new chat panel opens ─ */
+  useEffect(() => {
+    if (!showNewChat || !isLoggedIn) return;
+    setApptContactsLoading(true);
+    api.appointments.contacts()
+      .then(data => setApptContacts(data as unknown as ApptContact[]))
+      .catch(() => setApptContacts([]))
+      .finally(() => setApptContactsLoading(false));
+  }, [showNewChat, isLoggedIn]);
 
   /* ── User search for new chat ─────────────────────────── */
   useEffect(() => {
@@ -394,44 +415,103 @@ export default function ChatPage() {
               </button>
             </div>
 
-            {/* New chat search */}
+            {/* New chat panel */}
             {showNewChat && (
-              <div className="bg-[#EFF6FF] border-b border-blue-100 px-3 py-2">
-                <p className="text-xs text-[#2C74B3] font-semibold mb-2">
-                  Search {currentUser.role === "doctor" ? "patients" : "doctors"}
-                </p>
-                <div className="relative">
+              <div className="bg-[#EFF6FF] border-b border-blue-100 px-3 py-3">
+                {/* Search input */}
+                <div className="relative mb-2">
                   <i className="bi bi-search absolute left-3 top-2.5 text-gray-400 text-sm" />
                   <input
                     autoFocus
                     value={userSearch}
                     onChange={e => setUserSearch(e.target.value)}
-                    placeholder={`Find a ${currentUser.role === "doctor" ? "patient" : "doctor"}…`}
+                    placeholder={`Search ${currentUser.role === "doctor" ? "patients" : "doctors"}…`}
                     className="w-full bg-white rounded-full pl-9 pr-4 py-2 text-sm text-[#0A2647] placeholder-gray-400 focus:outline-none border border-blue-200"
                   />
                 </div>
-                <div className="mt-2 max-h-48 overflow-y-auto">
-                  {searchLoading && (
-                    <div className="text-center py-3 text-xs text-gray-400">Searching…</div>
-                  )}
-                  {!searchLoading && userSearch && searchResults.length === 0 && (
-                    <div className="text-center py-3 text-xs text-gray-400">No users found</div>
-                  )}
-                  {searchResults.map(u => (
-                    <button
-                      key={u.id}
-                      onClick={() => startChatWith(u)}
-                      className="w-full flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-blue-50 transition-colors text-left"
-                    >
-                      <Avatar name={u.name} role={u.role} size={9} />
-                      <div>
-                        <div className="text-sm font-semibold text-[#0A2647]">
-                          {u.role === "doctor" ? "Dr. " : ""}{u.name}
+
+                <div className="max-h-64 overflow-y-auto">
+                  {/* Search results */}
+                  {userSearch.trim() && (
+                    <>
+                      {searchLoading && (
+                        <div className="space-y-1 py-1">
+                          {[1,2].map(i => (
+                            <div key={i} className="flex items-center gap-2 px-2 py-2">
+                              <div className="w-9 h-9 rounded-full bg-blue-100 animate-pulse flex-shrink-0" />
+                              <div className="flex-1 space-y-1">
+                                <div className="h-3 bg-blue-100 rounded animate-pulse w-3/4" />
+                                <div className="h-2.5 bg-blue-100 rounded animate-pulse w-1/2" />
+                              </div>
+                            </div>
+                          ))}
                         </div>
-                        <div className="text-xs text-gray-400 capitalize">{u.role}</div>
-                      </div>
-                    </button>
-                  ))}
+                      )}
+                      {!searchLoading && searchResults.length === 0 && (
+                        <div className="text-center py-3 text-xs text-gray-400">No users found</div>
+                      )}
+                      {searchResults.map(u => (
+                        <button key={u.id} onClick={() => startChatWith(u)}
+                          className="w-full flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-white transition-colors text-left">
+                          <Avatar name={u.name} role={u.role} size={9} />
+                          <div>
+                            <div className="text-sm font-semibold text-[#0A2647]">{u.role === "doctor" ? "Dr. " : ""}{u.name}</div>
+                            <div className="text-xs text-gray-400 capitalize">{u.role}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </>
+                  )}
+
+                  {/* Appointment-based suggestions (shown when not searching) */}
+                  {!userSearch.trim() && (
+                    <>
+                      {apptContactsLoading && (
+                        <div className="space-y-1 py-1">
+                          {[1,2].map(i => (
+                            <div key={i} className="flex items-center gap-2 px-2 py-2">
+                              <div className="w-9 h-9 rounded-full bg-blue-100 animate-pulse flex-shrink-0" />
+                              <div className="flex-1 space-y-1">
+                                <div className="h-3 bg-blue-100 rounded animate-pulse w-3/4" />
+                                <div className="h-2.5 bg-blue-100 rounded animate-pulse w-1/2" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                      {!apptContactsLoading && apptContacts.length > 0 && (
+                        <>
+                          <p className="text-xs text-[#2C74B3] font-semibold px-2 pb-1">
+                            <i className="bi bi-calendar-check-fill mr-1" />
+                            From your appointments
+                          </p>
+                          {apptContacts.map(c => (
+                            <button key={c.id}
+                              onClick={() => startChatWith({ id: c.id, name: c.name, email: c.email, role: c.role })}
+                              className="w-full flex items-center gap-3 px-2 py-2 rounded-xl hover:bg-white transition-colors text-left">
+                              <Avatar name={c.name} role={c.role} size={9} />
+                              <div className="flex-1 min-w-0">
+                                <div className="text-sm font-semibold text-[#0A2647]">{c.role === "doctor" ? "Dr. " : ""}{c.name}</div>
+                                <div className="text-xs text-gray-400">
+                                  {c.appointment_date} ·{" "}
+                                  <span className={c.appointment_status === "confirmed" ? "text-green-600" : c.appointment_status === "pending" ? "text-amber-500" : "text-gray-400"}>
+                                    {c.appointment_status}
+                                  </span>
+                                </div>
+                              </div>
+                              <i className="bi bi-chat-dots-fill text-[#2C74B3] text-sm flex-shrink-0" />
+                            </button>
+                          ))}
+                          <div className="border-t border-blue-100 my-1" />
+                        </>
+                      )}
+                      {!apptContactsLoading && apptContacts.length === 0 && (
+                        <p className="text-xs text-gray-400 text-center py-2">
+                          Type a name to search
+                        </p>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
             )}
