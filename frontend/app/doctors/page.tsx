@@ -29,7 +29,7 @@ export default function DoctorsPage() {
   const fetcher = useCallback(() => api.doctors.list(filters), [spec, minExp]);
   const { data, loading, error, refetch } = useApi(fetcher, [spec, minExp]);
 
-  const doctors: Doctor[] = data?.results ?? [];
+  const doctors: Doctor[] = data?.data ?? [];
 
   return (
     <div className="min-h-screen flex flex-col">

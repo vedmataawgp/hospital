@@ -7,6 +7,8 @@ import Link from "next/link";
 
 interface Appointment {
   id: number;
+  doctorName?: string;
+  patientName?: string;
   doctor_name?: string;
   patient_name?: string;
   date: string;
@@ -29,7 +31,7 @@ export default function ConsultationPage() {
     setLoading(true);
     api.appointments.list({ status: "confirmed" })
       .then(data => {
-        const items = Array.isArray(data) ? data : [];
+        const items = Array.isArray(data) ? data : (data?.data ?? []);
         setAppointments(items);
       })
       .catch(() => {})
@@ -74,8 +76,8 @@ export default function ConsultationPage() {
 
   if (activeCall) {
     const otherName = currentUser?.role === "patient"
-      ? `Dr. ${activeCall.doctor_name ?? "Doctor"}`
-      : (activeCall.patient_name ?? "Patient");
+      ? `Dr. ${activeCall.doctorName ?? activeCall.doctor_name ?? "Doctor"}`
+      : (activeCall.patientName ?? activeCall.patient_name ?? "Patient");
 
     return (
       <div className="min-h-screen flex flex-col bg-[#0A2647] text-white">
@@ -212,8 +214,8 @@ export default function ConsultationPage() {
                 <div>
                   <p className="font-semibold text-[#0A2647]">
                     {currentUser?.role === "patient"
-                      ? `Dr. ${appt.doctor_name ?? "Doctor"}`
-                      : (appt.patient_name ?? "Patient")}
+                      ? `Dr. ${appt.doctorName ?? appt.doctor_name ?? "Doctor"}`
+                      : (appt.patientName ?? appt.patient_name ?? "Patient")}
                   </p>
                   <p className="text-gray-500 text-sm">{appt.date} at {appt.time}</p>
                 </div>

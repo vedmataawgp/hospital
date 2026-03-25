@@ -161,22 +161,22 @@ export default function PatientDashboard() {
                   <i className="bi bi-calendar-event-fill text-[#2C74B3]" /> Next Appointment
                 </h2>
                 {dash.loading && <SkeletonRow />}
-                {!dash.loading && dash.data?.upcoming_appointments?.[0] && (
+                {!dash.loading && dash.data?.upcomingList?.[0] && (
                   <div className="flex items-center gap-4 p-4 bg-[#F8FAFC] rounded-xl border border-gray-100">
                     <div className="w-12 h-12 bg-gradient-to-br from-[#144272] to-[#2C74B3] rounded-full flex items-center justify-center">
                       <i className="bi bi-person-circle text-white text-2xl" />
                     </div>
                     <div className="flex-1">
-                      <div className="font-bold text-[#0A2647]">{dash.data.upcoming_appointments[0].doctor}</div>
-                      <div className="text-[#2C74B3] text-sm font-medium">{dash.data.upcoming_appointments[0].department}</div>
+                      <div className="font-bold text-[#0A2647]">{dash.data.upcomingList[0].doctorName}</div>
+                      <div className="text-[#2C74B3] text-sm font-medium">{dash.data.upcomingList[0].doctorSpecialization}</div>
                     </div>
                     <div className="text-right">
-                      <div className="font-semibold text-[#0A2647] text-sm">{dash.data.upcoming_appointments[0].date}</div>
-                      <div className="text-gray-500 text-sm">{dash.data.upcoming_appointments[0].time}</div>
+                      <div className="font-semibold text-[#0A2647] text-sm">{dash.data.upcomingList[0].date}</div>
+                      <div className="text-gray-500 text-sm">{dash.data.upcomingList[0].time}</div>
                     </div>
                   </div>
                 )}
-                {!dash.loading && !dash.data?.upcoming_appointments?.[0] && (
+                {!dash.loading && !dash.data?.upcomingList?.[0] && (
                   <p className="text-gray-500 text-sm py-4 text-center">No upcoming appointments</p>
                 )}
               </div>
@@ -219,8 +219,8 @@ export default function PatientDashboard() {
                           <tbody className="divide-y divide-gray-50">
                             {section.rows.map((a, i) => (
                               <tr key={i} className="table-row">
-                                <td className="px-4 py-4 font-semibold text-[#0A2647] text-sm">{a.doctor}</td>
-                                <td className="px-4 py-4 text-gray-600 text-sm">{a.department}</td>
+                                <td className="px-4 py-4 font-semibold text-[#0A2647] text-sm">{a.doctorName}</td>
+                                <td className="px-4 py-4 text-gray-600 text-sm">{a.doctorSpecialization}</td>
                                 <td className="px-4 py-4 text-gray-600 text-sm">{a.date}</td>
                                 <td className="px-4 py-4 text-gray-600 text-sm">{a.time}</td>
                                 <td className="px-4 py-4">
@@ -263,7 +263,7 @@ export default function PatientDashboard() {
                       </div>
                       <div>
                         <div className="font-semibold text-[#0A2647] text-sm">{r.title}</div>
-                        <div className="text-gray-500 text-xs">PDF · {Math.round(r.size_kb / 1024 * 10) / 10} MB · {r.date}</div>
+                        <div className="text-gray-500 text-xs">PDF · {r.reportType ?? "Report"} · {r.createdAt ? new Date(r.createdAt).toLocaleDateString() : ""}</div>
                       </div>
                     </div>
                     <button className="text-[#2C74B3] text-sm font-semibold hover:underline flex items-center gap-1">
@@ -302,7 +302,7 @@ export default function PatientDashboard() {
                               <td className="px-4 py-4 font-mono text-sm text-[#2C74B3] font-semibold">{inv.id}</td>
                               <td className="px-4 py-4 text-gray-700 text-sm">{inv.description}</td>
                               <td className="px-4 py-4 font-bold text-[#0A2647]">{inv.amount}</td>
-                              <td className="px-4 py-4 text-gray-600 text-sm">{inv.date}</td>
+                              <td className="px-4 py-4 text-gray-600 text-sm">{inv.createdAt ? new Date(String(inv.createdAt)).toLocaleDateString() : ""}</td>
                               <td className="px-4 py-4">
                                 <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusClass[inv.status] ?? ""}`}>{inv.status}</span>
                               </td>

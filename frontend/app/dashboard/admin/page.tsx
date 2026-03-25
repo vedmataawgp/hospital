@@ -41,7 +41,7 @@ export default function AdminDashboard() {
   const patients: Patient[]    = (pats.data ?? []).filter(p =>
     !search || p.name?.toLowerCase().includes(search.toLowerCase()),
   );
-  const appointments: Appointment[] = apts.data ?? [];
+  const appointments: Appointment[] = apts.data?.data ?? [];
 
   const stats = [
     { label: "Total Patients",      val: overview.data?.total_patients,        icon: "bi-people-fill",          color: "text-[#2C74B3]", bg: "bg-blue-50" },
@@ -277,8 +277,8 @@ export default function AdminDashboard() {
                       <tbody className="divide-y divide-gray-50">
                         {appointments.map((a, i) => (
                           <tr key={i} className="table-row">
-                            <td className="px-4 py-4 font-semibold text-[#0A2647] text-sm">{a.patient}</td>
-                            <td className="px-4 py-4 text-gray-600 text-sm">{a.doctor}</td>
+                            <td className="px-4 py-4 font-semibold text-[#0A2647] text-sm">{a.patientName}</td>
+                            <td className="px-4 py-4 text-gray-600 text-sm">{a.doctorName}</td>
                             <td className="px-4 py-4 text-gray-600 text-sm">{a.date}</td>
                             <td className="px-4 py-4">
                               <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusClass[a.status] ?? ""}`}>{a.status}</span>

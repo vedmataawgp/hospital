@@ -82,9 +82,13 @@ export interface Message {
 export interface Report {
   id: number;
   title: string;
-  date: string;
+  date?: string;
   size_kb?: number;
   file_url?: string;
+  fileUrl?: string;
+  reportType?: string;
+  description?: string;
+  createdAt?: string;
 }
 
 /* ── Invoice ───────────────────────────────────────────────────────────── */
@@ -93,8 +97,11 @@ export interface Invoice {
   description?: string;
   amount?: string | number;
   date?: string;
+  createdAt?: string;
   status?: "Paid" | "Pending" | "Overdue" | "paid" | "pending" | "overdue";
   total?: number;
+  paymentMethod?: string;
+  paidAt?: string;
 }
 
 /* ── Prescription ──────────────────────────────────────────────────────── */
