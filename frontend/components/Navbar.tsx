@@ -13,8 +13,8 @@ const publicLinks = [
 ];
 
 const patientLinks = [
-  { href: "/",                    label: "Home",          icon: "bi-house-heart-fill" },
-  { href: "/doctors",             label: "Doctors",        icon: "bi-person-badge-fill" },
+  { href: "/",                    label: "Home",           icon: "bi-house-heart-fill" },
+  { href: "/discover",            label: "Discover",       icon: "bi-compass-fill" },
   { href: "/appointments",        label: "Appointments",   icon: "bi-calendar2-check-fill" },
   { href: "/consultation",        label: "Consultation",   icon: "bi-chat-heart-fill" },
   { href: "/dashboard/patient",   label: "Dashboard",      icon: "bi-speedometer2" },
@@ -22,9 +22,9 @@ const patientLinks = [
 
 const doctorLinks = [
   { href: "/dashboard/doctor",    label: "Dashboard",      icon: "bi-speedometer2" },
+  { href: "/discover",            label: "My Patients",    icon: "bi-people-fill" },
   { href: "/appointments",        label: "Appointments",   icon: "bi-calendar2-check-fill" },
   { href: "/consultation",        label: "Consultations",  icon: "bi-chat-heart-fill" },
-  { href: "/doctors",             label: "Doctors",        icon: "bi-person-badge-fill" },
 ];
 
 const adminLinks = [

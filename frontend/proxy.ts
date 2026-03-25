@@ -5,6 +5,7 @@ const PROTECTED_PREFIXES = [
   "/appointments",
   "/chat",
   "/consultation",
+  "/discover",
 ];
 
 const ROLE_ROUTES: Record<string, string[]> = {
@@ -63,6 +64,8 @@ export const config = {
     "/appointments/:path*",
     "/chat/:path*",
     "/consultation/:path*",
+    "/discover/:path*",
+    "/discover",
     "/auth/:path*",
   ],
 };
