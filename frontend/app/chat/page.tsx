@@ -155,7 +155,11 @@ function MsgSkeleton() {
    MAIN PAGE
 ═══════════════════════════════════════════════════════════════ */
 export default function ChatPage() {
-  const currentUser = userStore.get();
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => { setIsMounted(true); }, []);
+
+  const rawUser = userStore.get();
+  const currentUser = useMemo(() => rawUser, [rawUser?.id, rawUser?.role]);
   const isLoggedIn = !!tokenStore.get() && !!currentUser;
   const searchParams = useSearchParams();
 
@@ -189,6 +193,19 @@ export default function ChatPage() {
   const [apptContacts, setApptContacts] = useState<ApptContact[]>([]);
   const [apptContactsLoading, setApptContactsLoading] = useState(false);
 
+  /* attachments */
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /* video call */
+  const [callSession, setCallSession] = useState<{ role: 'caller' | 'callee'; status: 'ringing' | 'connected' | 'ended' } | null>(null);
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null);
+  const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
+  const pcRef = useRef<RTCPeerConnection | null>(null);
+  const processedSignalsRef = useRef<Set<number>>(new Set());
+  const localVideoRef = useRef<HTMLVideoElement>(null);
+  const remoteVideoRef = useRef<HTMLVideoElement>(null);
+
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fastPollRef   = useRef<ReturnType<typeof setInterval> | null>(null);
   const typingPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -204,6 +221,11 @@ export default function ChatPage() {
   const isSendingTypingRef = useRef(false);
 
   const activeConvo = useMemo(() => convos.find(c => c.id === activeConvoId) ?? null, [convos, activeConvoId]);
+  
+  const displayMessages = useMemo(() => 
+    messages.filter(m => m.message_type !== "signal"),
+    [messages]
+  );
 
   /* ── Convert server msg to local ───────────────────────── */
   const serverToLocal = (m: ChatMsg, mine: boolean): LocalMessage => ({
@@ -377,7 +399,10 @@ export default function ChatPage() {
 
   /* ── User search ──────────────────────────────────────── */
   useEffect(() => {
-    if (!userSearch.trim()) { setSearchResults([]); return; }
+    if (!userSearch.trim()) {
+      setSearchResults(prev => (prev.length === 0 ? prev : []));
+      return;
+    }
     const t = setTimeout(async () => {
       setSearchLoading(true);
       try {
@@ -389,6 +414,13 @@ export default function ChatPage() {
     }, 300);
     return () => clearTimeout(t);
   }, [userSearch, currentUser]);
+
+  useEffect(() => {
+    if (localVideoRef.current && localStream) localVideoRef.current.srcObject = localStream;
+  }, [localStream]);
+  useEffect(() => {
+    if (remoteVideoRef.current && remoteStream) remoteVideoRef.current.srcObject = remoteStream;
+  }, [remoteStream]);
 
   /* ── Start or open convo ──────────────────────────────── */
   const startChatWith = async (user: UserBrief) => {
@@ -402,6 +434,128 @@ export default function ChatPage() {
       setMobileView("chat");
     } catch { /* ignore */ }
   };
+
+  /* ── File Upload ── */
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !activeConvoId || !currentUser) return;
+    setUploading(true);
+    try {
+      const res = await api.upload(file);
+      const type = file.type.startsWith('image/') ? 'image' : 'file';
+      const msg = await api.chat.send(activeConvoId, "", type, res.url, res.name);
+      setMessages(prev => [...prev, serverToLocal(msg, true)]);
+    } catch { 
+      alert("Failed to upload file");
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  /* ── Video Call ── */
+  const startCall = async () => {
+    if (!activeConvoId || !currentUser) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      setLocalStream(stream);
+      setCallSession({ role: 'caller', status: 'ringing' });
+      
+      const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+      pcRef.current = pc;
+      
+      stream.getTracks().forEach(t => pc.addTrack(t, stream));
+      pc.ontrack = e => setRemoteStream(e.streams[0]);
+      
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+      
+      await api.chat.send(activeConvoId, JSON.stringify({ type: 'offer', sdp: offer.sdp }), 'signal');
+      
+      pc.onicecandidate = e => {
+        if (e.candidate) {
+          api.chat.send(activeConvoId, JSON.stringify({ type: 'candidate', candidate: e.candidate }), 'signal');
+        }
+      };
+    } catch (err) {
+      alert("Could not start camera: " + (err as Error).message);
+    }
+  };
+
+  const acceptCall = async () => {
+    if (!activeConvoId || !currentUser) return;
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+      setLocalStream(stream);
+      setCallSession(prev => prev ? { ...prev, status: 'connected' } : null);
+      
+      const pc = new RTCPeerConnection({ iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] });
+      pcRef.current = pc;
+      
+      stream.getTracks().forEach(t => pc.addTrack(t, stream));
+      pc.ontrack = e => setRemoteStream(e.streams[0]);
+      
+      // Find the most recent signal message that is an offer
+      const offerMsg = [...messages].reverse().find(m => {
+        const t = m.text.replace(/&quot;/g, '"');
+        return m.message_type === "signal" && t.includes('"type":"offer"');
+      });
+      if (offerMsg) {
+        const rawText = offerMsg.text.replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+        const signal = JSON.parse(rawText);
+        await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: signal.sdp }));
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        await api.chat.send(activeConvoId, JSON.stringify({ type: 'answer', sdp: answer.sdp }), 'signal');
+      }
+      
+      pc.onicecandidate = e => {
+        if (e.candidate) {
+          api.chat.send(activeConvoId, JSON.stringify({ type: 'candidate', candidate: e.candidate }), 'signal');
+        }
+      };
+    } catch (err) {
+      alert("Error accepting call: " + (err as Error).message);
+    }
+  };
+
+  const endCall = () => {
+    pcRef.current?.close();
+    pcRef.current = null;
+    localStream?.getTracks().forEach(t => t.stop());
+    setLocalStream(null);
+    setRemoteStream(null);
+    setCallSession(null);
+    if (activeConvoId) {
+      api.chat.send(activeConvoId, "Call ended", 'video_call');
+    }
+  };
+
+  /* Process incoming signals */
+  useEffect(() => {
+    const signals = messages.filter(m => m.message_type === "signal" && m.sender_id !== currentUser?.id && !processedSignalsRef.current.has(Number(m.serverId || 0)));
+    if (!signals.length || !currentUser || !activeConvoId) return;
+
+    signals.forEach(async (msg) => {
+      if (msg.serverId) processedSignalsRef.current.add(Number(msg.serverId));
+      try {
+        const rawText = msg.text.replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+        const signal = JSON.parse(rawText);
+        
+        if (signal.type === 'offer') {
+          if (callSession) return; // Already in a call
+          setCallSession({ role: 'callee', status: 'ringing' });
+        } else if (signal.type === 'answer' && pcRef.current) {
+          await pcRef.current.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: signal.sdp }));
+          setCallSession(prev => prev ? { ...prev, status: 'connected' } : null);
+        } else if (signal.type === 'candidate' && pcRef.current) {
+          await pcRef.current.addIceCandidate(new RTCIceCandidate(signal.candidate));
+        }
+      } catch (err) {
+        console.error("Signal error:", err);
+      }
+    });
+  }, [messages, currentUser, activeConvoId, callSession]);
 
   /* ── Typing signal to backend ─────────────────────────── */
   const handleInputChange = (val: string) => {
@@ -491,6 +645,18 @@ export default function ChatPage() {
       c.other_user?.name?.toLowerCase().includes(search.toLowerCase()) ||
       c.last_message?.text?.toLowerCase().includes(search.toLowerCase())
     ), [convos, search]);
+
+  /* ─── LOADING STATE ──────────────────────────────────── */
+  if (!isMounted) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC]">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-[#2C74B3] border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+          <p className="text-[#0A2647] font-medium">Verifying access...</p>
+        </div>
+      </div>
+    );
+  }
 
   /* ─── NOT LOGGED IN ──────────────────────────────────── */
   if (!isLoggedIn) {
@@ -762,6 +928,13 @@ export default function ChatPage() {
                           }
                         </div>
                       </div>
+                      <button 
+                        onClick={() => startCall()}
+                        className="w-10 h-10 flex items-center justify-center rounded-full hover:bg-gray-100 text-[#2C74B3] transition-colors"
+                        title="Start video call"
+                      >
+                        <i className="bi bi-camera-video-fill text-xl" />
+                      </button>
                     </>
                   )}
                 </div>
@@ -772,10 +945,10 @@ export default function ChatPage() {
                     <MsgSkeleton />
                   ) : (
                     <>
-                      {messages.map((msg, idx) => {
+                      {displayMessages.map((msg, idx) => {
                         const mine = msg.sender_id === currentUser.id;
                         const msgReactions = reactions[msg.tempId] ?? [];
-                        const showAvatar = !mine && (idx === 0 || messages[idx - 1].sender_id !== msg.sender_id);
+                        const showAvatar = !mine && (idx === 0 || displayMessages[idx - 1].sender_id !== msg.sender_id);
 
                         return (
                           <div key={msg.tempId}
@@ -812,7 +985,46 @@ export default function ChatPage() {
                                     ? "bg-gradient-to-br from-[#2C74B3] to-[#0A2647] text-white rounded-br-none"
                                     : "bg-white text-[#1a1a2e] rounded-bl-none"
                                   }`}>
-                                  {msg.text}
+                                  {/* Attachment */}
+                                  {msg.message_type === "image" && msg.file_url && (
+                                    <div className="mb-2 rounded-lg overflow-hidden border border-gray-200/20 shadow-sm transition-transform hover:scale-[1.02] cursor-pointer">
+                                      <img 
+                                        src={msg.file_url} 
+                                        alt={msg.file_name} 
+                                        className="max-w-full min-w-[200px] h-auto object-cover max-h-[300px]" 
+                                        onClick={() => window.open(msg.file_url, '_blank')}
+                                      />
+                                    </div>
+                                  )}
+                                  {msg.message_type === "file" && msg.file_url && (
+                                    <a 
+                                      href={msg.file_url} 
+                                      target="_blank" 
+                                      rel="noreferrer" 
+                                      className={`flex items-center gap-3 px-3 py-2 rounded-xl mb-2 border transition-all hover:bg-black/5 ${mine ? "bg-white/10 border-white/20 text-white" : "bg-gray-50 border-gray-100 text-[#2C74B3]"}`}
+                                    >
+                                      <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${mine ? "bg-white/20" : "bg-blue-50"}`}>
+                                        <i className="bi bi-file-earmark-arrow-down-fill text-xl" />
+                                      </div>
+                                      <div className="min-w-0 flex-1">
+                                        <div className="text-xs font-semibold truncate">{msg.file_name}</div>
+                                        <div className="text-[10px] opacity-60 uppercase font-bold tracking-tight">Open Document</div>
+                                      </div>
+                                    </a>
+                                  )}
+                                  
+                                  {/* Text */}
+                                  {msg.text && (
+                                    <div className="whitespace-pre-wrap break-words">{msg.text}</div>
+                                  )}
+
+                                  {/* Video Call notification */}
+                                  {msg.message_type === "video_call" && (
+                                    <div className="flex items-center gap-2 py-1">
+                                      <i className="bi bi-camera-video-fill text-xl" />
+                                      <span className="font-semibold">{msg.text || "Video call"}</span>
+                                    </div>
+                                  )}
                                 </div>
 
                                 {/* Time + tick */}
@@ -896,6 +1108,25 @@ export default function ChatPage() {
                   )}
 
                   <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                      className="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-full text-gray-400 hover:bg-gray-100 hover:text-[#2C74B3] transition-colors"
+                      title="Attach file"
+                    >
+                      {uploading ? (
+                        <i className="bi bi-arrow-repeat animate-spin text-xl" />
+                      ) : (
+                        <i className="bi bi-paperclip text-2xl" />
+                      )}
+                    </button>
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      className="hidden" 
+                      onChange={handleFileSelect} 
+                    />
+
                     <div className="flex-1 flex items-center gap-2 bg-gray-50 rounded-full px-4 py-2.5 border border-gray-200 focus-within:border-[#2C74B3]/50 focus-within:bg-white transition-colors">
                       <input
                         ref={inputRef}
@@ -920,6 +1151,72 @@ export default function ChatPage() {
           </main>
         </div>
       </div>
+
+      {/* Video Call Overlay */}
+      {callSession && (
+        <div className="fixed inset-0 z-[100] bg-[#0A2647] flex flex-col items-center justify-center text-white">
+          <div className="absolute top-6 left-6 flex items-center gap-3">
+            <div className="w-10 h-10 bg-[#2C74B3] rounded-xl flex items-center justify-center shadow-lg">
+              <i className="bi bi-heart-pulse-fill text-white" />
+            </div>
+            <div>
+              <div className="font-bold text-lg text-white">MediCare Connect</div>
+              <div className="text-sky-300 text-xs font-semibold uppercase tracking-wider">Secure Consultation</div>
+            </div>
+          </div>
+
+          {callSession.status === 'ringing' ? (
+            <div className="text-center animate-pulse">
+              <div className="w-32 h-32 bg-white/10 rounded-full flex items-center justify-center mx-auto mb-8 ring-4 ring-white/5 shadow-2xl overflow-hidden">
+                <Avatar name={activeConvo?.other_user?.name ?? "?"} role={activeConvo?.other_user?.role ?? ""} size={16} />
+              </div>
+              <h2 className="text-3xl font-bold mb-2">
+                {callSession.role === 'caller' ? `Calling ${activeConvo?.other_user?.name}...` : `Incoming Call: ${activeConvo?.other_user?.name}`}
+              </h2>
+              <p className="text-sky-300 mb-12">{callSession.role === 'caller' ? 'Waiting for answer...' : 'Click Accept to join'}</p>
+              
+              <div className="flex gap-8 justify-center">
+                {callSession.role === 'callee' && (
+                  <button onClick={acceptCall} className="w-20 h-20 rounded-full bg-green-500 hover:bg-green-600 flex items-center justify-center shadow-xl transition-transform active:scale-90">
+                    <i className="bi bi-telephone-fill text-3xl" />
+                  </button>
+                )}
+                <button onClick={endCall} className="w-20 h-20 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-xl transition-transform active:scale-90">
+                  <i className="bi bi-telephone-fill rotate-[135deg] text-3xl" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="w-full h-full relative flex items-center justify-center bg-black">
+              <video ref={remoteVideoRef} autoPlay playsInline className="w-full h-full object-cover" />
+              
+              {/* Local preview */}
+              <div className="absolute bottom-24 right-6 w-48 h-64 bg-gray-900 rounded-2xl overflow-hidden border-2 border-white/20 shadow-2xl z-10">
+                <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
+                <div className="absolute bottom-2 left-2 px-2 py-0.5 bg-black/50 rounded text-[10px] font-bold">YOU</div>
+              </div>
+
+              {/* Controls */}
+              <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-6 bg-black/40 backdrop-blur-xl px-8 py-4 rounded-3xl border border-white/10 shadow-2xl">
+                <button className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                  <i className="bi bi-mic-fill text-xl" />
+                </button>
+                <button onClick={endCall} className="w-14 h-14 rounded-full bg-red-500 hover:bg-red-600 flex items-center justify-center shadow-lg transition-transform active:scale-95">
+                  <i className="bi bi-telephone-fill rotate-[135deg] text-2xl" />
+                </button>
+                <button className="w-12 h-12 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors">
+                  <i className="bi bi-camera-video-fill text-xl" />
+                </button>
+              </div>
+
+              <div className="absolute top-6 right-6 px-4 py-2 bg-black/40 backdrop-blur-md rounded-full border border-white/10 flex items-center gap-2">
+                <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                <span className="text-xs font-bold tracking-widest uppercase">Live Connection</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </>
     </AuthGuard>
   );

@@ -16,7 +16,8 @@ const patientLinks = [
   { href: "/",                    label: "Home",           icon: "bi-house-heart-fill" },
   { href: "/discover",            label: "Discover",       icon: "bi-compass-fill" },
   { href: "/appointments",        label: "Appointments",   icon: "bi-calendar2-check-fill" },
-  { href: "/consultation",        label: "Consultation",   icon: "bi-chat-heart-fill" },
+  { href: "/consultation",        label: "Consultation",   icon: "bi-camera-video-fill" },
+  { href: "/chat",                label: "Chat",           icon: "bi-chat-dots-fill" },
   { href: "/dashboard/patient",   label: "Dashboard",      icon: "bi-speedometer2" },
 ];
 
@@ -24,7 +25,8 @@ const doctorLinks = [
   { href: "/dashboard/doctor",    label: "Dashboard",      icon: "bi-speedometer2" },
   { href: "/discover",            label: "My Patients",    icon: "bi-people-fill" },
   { href: "/appointments",        label: "Appointments",   icon: "bi-calendar2-check-fill" },
-  { href: "/consultation",        label: "Consultations",  icon: "bi-chat-heart-fill" },
+  { href: "/consultation",        label: "Consultations",  icon: "bi-camera-video-fill" },
+  { href: "/chat",                label: "Chat",           icon: "bi-chat-dots-fill" },
 ];
 
 const adminLinks = [
@@ -44,6 +46,7 @@ export default function Navbar() {
   const [open, setOpen]     = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [user, setUser]     = useState<UserBrief | null>(null);
+  const [unreadCount, setUnreadCount] = useState(0);
   const pathname            = usePathname();
   const router              = useRouter();
 
@@ -58,6 +61,26 @@ export default function Navbar() {
   useEffect(() => {
     setUser(userStore.get());
   }, [pathname]);
+
+  /* Fetch unread count periodically */
+  useEffect(() => {
+    if (!user) {
+      setUnreadCount(0);
+      return;
+    }
+
+    const fetchUnread = async () => {
+      try {
+        const convos = await api.chat.conversations();
+        const total = convos.reduce((sum, c) => sum + (c.unread_count || 0), 0);
+        setUnreadCount(total);
+      } catch { /* ignore */ }
+    };
+
+    fetchUnread();
+    const interval = setInterval(fetchUnread, 15000); // Poll every 15s
+    return () => clearInterval(interval);
+  }, [user]);
 
   const handleLogout = () => {
     api.auth.logout();
@@ -252,6 +275,11 @@ export default function Navbar() {
                 >
                   <i className={`bi ${l.icon}`} />
                   {l.label}
+                  {l.href === "/chat" && unreadCount > 0 && (
+                    <span className="absolute -top-1.5 -right-1 flex h-4 min-w-[16px] px-1 items-center justify-center rounded-full bg-red-500 text-[9px] font-bold text-white shadow-sm ring-1 ring-[#0A2647] animate-pulse">
+                      {unreadCount > 9 ? "9+" : unreadCount}
+                    </span>
+                  )}
                 </Link>
               ))}
             </div>
@@ -359,6 +387,11 @@ export default function Navbar() {
                   <i className={`bi ${l.icon} text-[#38BDF8]`} />
                 </div>
                 <span className="flex-1">{l.label}</span>
+                {l.href === "/chat" && unreadCount > 0 && (
+                  <span className="mr-3 flex h-5 min-w-[20px] px-1.5 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">
+                    {unreadCount > 9 ? "9+" : unreadCount}
+                  </span>
+                )}
                 {pathname === l.href || (l.href !== "/" && pathname.startsWith(l.href))
                   ? <i className="bi bi-check-circle-fill text-[#38BDF8] text-sm" />
                   : <i className="bi bi-chevron-right text-slate-600 text-xs" />}

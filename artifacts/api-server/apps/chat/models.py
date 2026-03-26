@@ -27,6 +27,8 @@ class ChatMessage(models.Model):
         ('text', 'Text'),
         ('image', 'Image'),
         ('file', 'File'),
+        ('video_call', 'Video Call'),
+        ('signal', 'WebRTC Signal'),
     ]
     conversation = models.ForeignKey(Conversation, on_delete=models.CASCADE, related_name='messages')
     sender = models.ForeignKey(User, on_delete=models.CASCADE, related_name='sent_messages')

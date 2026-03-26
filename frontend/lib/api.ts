@@ -300,10 +300,15 @@ export const api = {
       }),
     messages: (convoId: number, afterId?: number) =>
       request<ChatMsg[]>(`/chat/conversations/${convoId}/messages/${afterId ? `?after=${afterId}` : ""}`),
-    send: (convoId: number, text: string, messageType = "text") =>
+    send: (convoId: number, text: string, messageType = "text", fileUrl?: string, fileName?: string) =>
       request<ChatMsg>(`/chat/conversations/${convoId}/send/`, {
         method: "POST",
-        body: JSON.stringify({ text: sanitise(text), message_type: messageType }),
+        body: JSON.stringify({
+          text: (text && messageType !== "signal") ? sanitise(text) : text,
+          message_type: messageType,
+          file_url: fileUrl,
+          file_name: fileName,
+        }),
       }),
     markRead: (convoId: number) =>
       request<{ marked: number }>(`/chat/conversations/${convoId}/mark-read/`, { method: "POST" }),

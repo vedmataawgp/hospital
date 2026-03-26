@@ -39,11 +39,20 @@ class ConversationSerializer(serializers.ModelSerializer):
         return UserBriefSerializer(other).data
 
     def get_last_message(self, obj):
-        msg = obj.get_last_message()
+        # Find latest non-signal message
+        msg = obj.messages.exclude(message_type='signal').order_by('-created_at').first()
         if not msg:
             return None
+        
+        preview_text = msg.text
+        if not preview_text:
+            if msg.message_type == 'image': preview_text = '📷 Photo'
+            elif msg.message_type == 'file': preview_text = '📁 Document'
+            elif msg.message_type == 'video_call': preview_text = '📹 Video call'
+            else: preview_text = f'[{msg.message_type.title()}]'
+
         return {
-            'text': msg.text or ('[Image]' if msg.message_type == 'image' else '[File]'),
+            'text': preview_text,
             'created_at': msg.created_at,
             'sender_name': msg.sender.name,
         }
