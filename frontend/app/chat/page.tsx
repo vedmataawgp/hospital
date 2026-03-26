@@ -281,6 +281,7 @@ export default function ChatPage() {
     setOtherTyping(false);
     lastMsgIdRef.current = 0;
     unreadSentRef.current = new Set();
+    processedSignalsRef.current.clear(); // Clear signals when switching conversations
 
     api.chat.messages(activeConvoId)
       .then(data => {
@@ -533,26 +534,53 @@ export default function ChatPage() {
 
   /* Process incoming signals */
   useEffect(() => {
-    const signals = messages.filter(m => m.message_type === "signal" && m.sender_id !== currentUser?.id && !processedSignalsRef.current.has(Number(m.serverId || 0)));
-    if (!signals.length || !currentUser || !activeConvoId) return;
+    if (!messages.length || !currentUser || !activeConvoId) return;
 
-    signals.forEach(async (msg) => {
-      if (msg.serverId) processedSignalsRef.current.add(Number(msg.serverId));
+    const currentSignals = messages.filter(m => 
+      m.message_type === "signal" && 
+      m.sender_id !== currentUser?.id && 
+      !processedSignalsRef.current.has(Number(m.serverId || 0))
+    );
+
+    if (currentSignals.length === 0) return;
+
+    const now = Date.now();
+    currentSignals.forEach(async (msg) => {
+      const signalId = Number(msg.serverId || 0);
+      if (signalId) processedSignalsRef.current.add(signalId);
+
+      // Skip signals older than 2 minutes (prevents ringing for stale offers)
+      const msgTime = new Date(msg.time).getTime();
+      if (now - msgTime > 120000) return;
+
       try {
         const rawText = msg.text.replace(/&quot;/g, '"').replace(/&#x27;/g, "'").replace(/&lt;/g, '<').replace(/&gt;/g, '>');
         const signal = JSON.parse(rawText);
         
-        if (signal.type === 'offer') {
-          if (callSession) return; // Already in a call
-          setCallSession({ role: 'callee', status: 'ringing' });
-        } else if (signal.type === 'answer' && pcRef.current) {
-          await pcRef.current.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: signal.sdp }));
-          setCallSession(prev => prev ? { ...prev, status: 'connected' } : null);
-        } else if (signal.type === 'candidate' && pcRef.current) {
-          await pcRef.current.addIceCandidate(new RTCIceCandidate(signal.candidate));
+        switch (signal.type) {
+          case 'offer':
+            // Only respond to offers if we are not already in an active session
+            if (!callSession || callSession.status === 'ended') {
+              console.log("Incoming call offer detected. Starting ringing...");
+              setCallSession({ role: 'callee', status: 'ringing' });
+            }
+            break;
+
+          case 'answer':
+            if (pcRef.current && pcRef.current.signalingState !== 'stable') {
+              await pcRef.current.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: signal.sdp }));
+              setCallSession(prev => prev ? { ...prev, status: 'connected' } : null);
+            }
+            break;
+
+          case 'candidate':
+            if (pcRef.current && pcRef.current.remoteDescription) {
+              await pcRef.current.addIceCandidate(new RTCIceCandidate(signal.candidate));
+            }
+            break;
         }
       } catch (err) {
-        console.error("Signal error:", err);
+        console.error("Signal parsing error:", err);
       }
     });
   }, [messages, currentUser, activeConvoId, callSession]);
