@@ -65,14 +65,12 @@ function ApptCard({
                 </button>
               </>
             )}
-            {(st === "confirmed" || st === "pending") && (
-              <button
-                onClick={onChat}
-                className="flex items-center gap-1 px-3 py-1 rounded-full bg-blue-100 text-[#2C74B3] hover:bg-blue-200 text-xs font-semibold transition-colors"
-              >
-                <i className="bi bi-chat-dots-fill" /> Chat
-              </button>
-            )}
+            <button
+              onClick={onChat}
+              className="flex items-center gap-1 px-3 py-1 rounded-full bg-blue-100 text-[#2C74B3] hover:bg-blue-200 text-xs font-semibold transition-colors"
+            >
+              <i className="bi bi-chat-dots-fill" /> Chat
+            </button>
           </div>
         </div>
       </div>
@@ -141,11 +139,8 @@ export default function DoctorDashboard() {
     setBusyId(null);
   };
 
-  const handleChat = async (userId?: number) => {
-    if (userId) {
-      try { await api.chat.startConversation(userId); } catch { /* ok */ }
-    }
-    router.push("/chat");
+  const handleChat = (userId?: number) => {
+    router.push(userId ? `/chat?userId=${userId}` : "/chat");
   };
 
   const doctorName = dash.data?.doctor?.name ?? "Doctor";

@@ -3,6 +3,7 @@
 import {
   useState, useEffect, useRef, useCallback, useMemo,
 } from "react";
+import { useSearchParams } from "next/navigation";
 import Navbar from "@/components/Navbar";
 import AuthGuard from "@/components/AuthGuard";
 import { api, userStore, tokenStore } from "@/lib/api";
@@ -156,11 +157,13 @@ function MsgSkeleton() {
 export default function ChatPage() {
   const currentUser = userStore.get();
   const isLoggedIn = !!tokenStore.get() && !!currentUser;
+  const searchParams = useSearchParams();
 
   /* conversations */
   const [convos, setConvos] = useState<ChatConversation[]>([]);
   const [loadingConvos, setLoadingConvos] = useState(false);
   const [activeConvoId, setActiveConvoId] = useState<number | null>(null);
+  const autoOpenedRef = useRef(false);
 
   /* messages */
   const [messages, setMessages] = useState<LocalMessage[]>([]);
@@ -228,6 +231,25 @@ export default function ChatPage() {
   }, [isLoggedIn]);
 
   useEffect(() => { loadConversations(); }, [loadConversations]);
+
+  /* ── Auto-open conversation from ?userId=X URL param ─── */
+  useEffect(() => {
+    if (!isLoggedIn || autoOpenedRef.current) return;
+    const targetUserId = searchParams.get("userId");
+    if (!targetUserId) return;
+    autoOpenedRef.current = true;
+
+    const open = async () => {
+      try {
+        const convo = await api.chat.startConversation(Number(targetUserId));
+        setConvos(prev => prev.find(c => c.id === convo.id) ? prev : [convo, ...prev]);
+        setActiveConvoId(convo.id);
+        setMobileView("chat");
+      } catch { /* ignore */ }
+    };
+    open();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn, searchParams]);
 
   /* ── Load full message history when convo changes ────── */
   useEffect(() => {

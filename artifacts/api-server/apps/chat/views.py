@@ -184,7 +184,6 @@ def appointment_contacts(request):
             patient = Patient.objects.get(user=user)
             appts = Appointment.objects.filter(
                 patient=patient,
-                status__in=['pending', 'confirmed', 'completed']
             ).select_related('doctor__user').order_by('-created_at')
             seen = set()
             for a in appts:
@@ -207,7 +206,6 @@ def appointment_contacts(request):
             doctor = Doctor.objects.get(user=user)
             appts = Appointment.objects.filter(
                 doctor=doctor,
-                status__in=['pending', 'confirmed', 'completed']
             ).select_related('patient__user').order_by('-created_at')
             seen = set()
             for a in appts:
