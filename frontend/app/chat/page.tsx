@@ -28,7 +28,12 @@ function initials(name: string) {
 }
 
 const REACTION_EMOJIS = ["❤️", "👍", "😂", "😮", "😢", "🙏"];
-const POLL_INTERVAL_MS = 2000;
+
+/* 1 s fast poll for new messages, 1.5 s for typing, 2.5 s for read-receipt check */
+const FAST_POLL_MS   = 1000;
+const TYPING_POLL_MS = 1500;
+const READ_POLL_MS   = 2500;
+const TYPING_DEBOUNCE_MS = 3000; /* stop-typing signal delay */
 
 interface ApptContact {
   id: number;
@@ -39,6 +44,9 @@ interface ApptContact {
   appointment_date: string;
 }
 
+/* "sending" = optimistic, "sent" = server ACK, "delivered" = server stored (legacy compat), "read" = other user read it */
+type MsgStatus = "sending" | "sent" | "delivered" | "read";
+
 interface LocalMessage {
   tempId: string;
   serverId?: number;
@@ -48,28 +56,50 @@ interface LocalMessage {
   text: string;
   message_type: string;
   time: string;
-  status: "sending" | "sent" | "delivered";
+  status: MsgStatus;
   reactions: { emoji: string; count: number; mine: boolean }[];
   replyTo?: { text: string; name: string };
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   STATUS ICON
+   READ-RECEIPT TICK ICON
+   ✓  = sending (grey single)
+   ✓✓ = sent / delivered (grey double)
+   ✓✓ = read (blue double)
 ═══════════════════════════════════════════════════════════════ */
-function StatusIcon({ status }: { status: string }) {
-  if (status === "sending") return <i className="bi bi-clock text-white/50 text-xs" />;
-  if (status === "sent") return <i className="bi bi-check text-white/70 text-xs" />;
-  return <i className="bi bi-check-all text-sky-300 text-xs" />;
+function TickIcon({ status }: { status: MsgStatus }) {
+  if (status === "sending") {
+    return <i className="bi bi-clock text-white/50 text-[11px]" title="Sending…" />;
+  }
+  if (status === "sent" || status === "delivered") {
+    return (
+      <span className="inline-flex items-center -space-x-[5px]" title="Delivered">
+        <i className="bi bi-check text-white/60 text-[13px]" />
+        <i className="bi bi-check text-white/60 text-[13px]" />
+      </span>
+    );
+  }
+  /* read — blue double tick */
+  return (
+    <span className="inline-flex items-center -space-x-[5px]" title="Read">
+      <i className="bi bi-check text-sky-300 text-[13px]" />
+      <i className="bi bi-check text-sky-300 text-[13px]" />
+    </span>
+  );
 }
 
-function TypingDots() {
+/* Animated typing dots */
+function TypingDots({ name }: { name: string }) {
   return (
-    <div className="flex items-end gap-2 px-4 py-2">
-      <div className="flex items-center gap-1 bg-white rounded-2xl rounded-bl-none px-4 py-3 shadow-sm">
-        {[0, 1, 2].map(i => (
-          <span key={i} className="w-2 h-2 bg-gray-400 rounded-full"
-            style={{ animation: `typingBounce 1.2s ${i * 0.2}s infinite ease-in-out` }} />
-        ))}
+    <div className="flex items-end gap-2 px-4 py-1 msg-new">
+      <div className="flex flex-col items-start gap-0.5">
+        <span className="text-[10px] text-gray-400 pl-1">{name} is typing…</span>
+        <div className="flex items-center gap-1 bg-white rounded-2xl rounded-bl-none px-4 py-3 shadow-sm">
+          {[0, 1, 2].map(i => (
+            <span key={i} className="w-2 h-2 bg-gray-400 rounded-full"
+              style={{ animation: `typingBounce 1.2s ${i * 0.18}s infinite ease-in-out` }} />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -83,6 +113,39 @@ function Avatar({ name, role, size = 10 }: { name: string; role: string; size?: 
   return (
     <div className={`w-${size} h-${size} rounded-full flex items-center justify-center text-white font-bold text-sm flex-shrink-0 ${isDoc ? "bg-[#0A2647]" : "bg-[#2C74B3]"}`}>
       {initials(name)}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   SKELETON LOADERS
+═══════════════════════════════════════════════════════════════ */
+function ConvoSkeleton() {
+  return (
+    <div className="space-y-0.5 px-2 pt-1">
+      {[1,2,3,4,5].map(i => (
+        <div key={i} className="flex items-center gap-3 px-2 py-3 rounded-xl">
+          <div className="w-11 h-11 rounded-full bg-gray-200 animate-pulse flex-shrink-0" />
+          <div className="flex-1 space-y-2">
+            <div className="h-3 bg-gray-200 animate-pulse rounded w-2/3" />
+            <div className="h-2.5 bg-gray-100 animate-pulse rounded w-1/2" />
+          </div>
+          <div className="h-2 bg-gray-100 animate-pulse rounded w-8" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function MsgSkeleton() {
+  return (
+    <div className="flex flex-col gap-3 px-4 py-6">
+      {[false, true, false, false, true].map((mine, i) => (
+        <div key={i} className={`flex gap-2 ${mine ? "justify-end" : "justify-start"}`}>
+          {!mine && <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse flex-shrink-0 mt-1" />}
+          <div className={`h-10 rounded-2xl animate-pulse ${mine ? "bg-blue-100 w-40" : "bg-gray-200 w-52"}`} />
+        </div>
+      ))}
     </div>
   );
 }
@@ -103,17 +166,19 @@ export default function ChatPage() {
   const [messages, setMessages] = useState<LocalMessage[]>([]);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
 
-  /* ui state */
+  /* real-time */
+  const [otherTyping, setOtherTyping] = useState(false);
+
+  /* ui */
   const [input, setInput] = useState("");
   const [search, setSearch] = useState("");
   const [mobileView, setMobileView] = useState<"list" | "chat">("list");
   const [replyTo, setReplyTo] = useState<{ text: string; name: string } | null>(null);
   const [hoverMsgId, setHoverMsgId] = useState<string | null>(null);
   const [showReactions, setShowReactions] = useState<string | null>(null);
-  const [otherTyping, setOtherTyping] = useState(false);
   const [reactions, setReactions] = useState<Record<string, { emoji: string; count: number; mine: boolean }[]>>({});
 
-  /* new chat search */
+  /* new chat */
   const [showNewChat, setShowNewChat] = useState(false);
   const [userSearch, setUserSearch] = useState("");
   const [searchResults, setSearchResults] = useState<UserBrief[]>([]);
@@ -122,11 +187,34 @@ export default function ChatPage() {
   const [apptContactsLoading, setApptContactsLoading] = useState(false);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const lastMsgIdRef = useRef<number>(0);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const fastPollRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const typingPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const readPollRef   = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastMsgIdRef  = useRef<number>(0);
+  const inputRef      = useRef<HTMLInputElement>(null);
+
+  /* IDs of our sent messages awaiting a read receipt */
+  const unreadSentRef = useRef<Set<number>>(new Set());
+
+  /* typing debounce: clear typing after TYPING_DEBOUNCE_MS of silence */
+  const typingTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isSendingTypingRef = useRef(false);
 
   const activeConvo = useMemo(() => convos.find(c => c.id === activeConvoId) ?? null, [convos, activeConvoId]);
+
+  /* ── Convert server msg to local ───────────────────────── */
+  const serverToLocal = (m: ChatMsg, mine: boolean): LocalMessage => ({
+    tempId: String(m.id),
+    serverId: m.id,
+    sender_id: m.sender,
+    sender_name: m.sender_name,
+    sender_role: m.sender_role,
+    text: m.text,
+    message_type: m.message_type,
+    time: m.created_at,
+    status: mine ? (m.is_read ? "read" : "sent") : "delivered",
+    reactions: [],
+  });
 
   /* ── Load conversations ───────────────────────────────── */
   const loadConversations = useCallback(async () => {
@@ -135,139 +223,192 @@ export default function ChatPage() {
     try {
       const data = await api.chat.conversations();
       setConvos(data);
-    } catch {
-      /* stay with empty list if backend offline */
-    } finally {
-      setLoadingConvos(false);
-    }
+    } catch { /* ignore */ }
+    finally { setLoadingConvos(false); }
   }, [isLoggedIn]);
 
   useEffect(() => { loadConversations(); }, [loadConversations]);
 
-  /* ── Load messages when active convo changes ─────────── */
+  /* ── Load full message history when convo changes ────── */
   useEffect(() => {
-    if (!activeConvoId || !isLoggedIn) return;
+    if (!activeConvoId || !isLoggedIn || !currentUser) return;
     setLoadingMsgs(true);
     setMessages([]);
+    setOtherTyping(false);
     lastMsgIdRef.current = 0;
+    unreadSentRef.current = new Set();
+
     api.chat.messages(activeConvoId)
       .then(data => {
-        const local: LocalMessage[] = data.map(m => ({
-          tempId: String(m.id),
-          serverId: m.id,
-          sender_id: m.sender,
-          sender_name: m.sender_name,
-          sender_role: m.sender_role,
-          text: m.text,
-          message_type: m.message_type,
-          time: m.created_at,
-          status: "delivered",
-          reactions: [],
-        }));
+        const local = data.map(m => serverToLocal(m, m.sender === currentUser.id));
         setMessages(local);
         setReactions({});
-        if (data.length > 0) lastMsgIdRef.current = Math.max(...data.map(m => m.id));
+        if (data.length > 0) {
+          lastMsgIdRef.current = Math.max(...data.map(m => m.id));
+          /* track any of our sent messages that haven't been read yet */
+          data.forEach(m => {
+            if (m.sender === currentUser.id && !m.is_read) {
+              unreadSentRef.current.add(m.id);
+            }
+          });
+        }
       })
       .catch(() => {})
       .finally(() => setLoadingMsgs(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeConvoId, isLoggedIn]);
 
-  /* ── Real-time polling for new messages ───────────────── */
+  /* ── FAST POLL: new incoming messages (1 s, ?after=lastId) ─ */
   useEffect(() => {
-    if (pollRef.current) clearInterval(pollRef.current);
+    if (fastPollRef.current) clearInterval(fastPollRef.current);
     if (!activeConvoId || !isLoggedIn || !currentUser) return;
 
-    pollRef.current = setInterval(async () => {
+    fastPollRef.current = setInterval(async () => {
       try {
-        const data = await api.chat.messages(activeConvoId);
+        const data = await api.chat.messages(activeConvoId, lastMsgIdRef.current);
         if (!data.length) return;
-        const maxId = Math.max(...data.map(m => m.id));
-        if (maxId <= lastMsgIdRef.current) return;
-        const newMsgs = data.filter(m => m.id > lastMsgIdRef.current && m.sender !== currentUser.id);
-        if (newMsgs.length === 0) return;
-        lastMsgIdRef.current = maxId;
+        const newId = Math.max(...data.map(m => m.id));
+        lastMsgIdRef.current = newId;
+        const incoming = data.filter(m => m.sender !== currentUser.id);
+        if (!incoming.length) return;
         setMessages(prev => {
-          const existingIds = new Set(prev.map(m => m.serverId).filter(Boolean));
-          const toAdd: LocalMessage[] = newMsgs
-            .filter(m => !existingIds.has(m.id))
-            .map(m => ({
-              tempId: String(m.id),
-              serverId: m.id,
-              sender_id: m.sender,
-              sender_name: m.sender_name,
-              sender_role: m.sender_role,
-              text: m.text,
-              message_type: m.message_type,
-              time: m.created_at,
-              status: "delivered" as const,
-              reactions: [],
-            }));
+          const ids = new Set(prev.map(m => m.serverId).filter(Boolean));
+          const toAdd = incoming.filter(m => !ids.has(m.id)).map(m => serverToLocal(m, false));
           return toAdd.length ? [...prev, ...toAdd] : prev;
         });
         setConvos(prev => prev.map(c =>
           c.id === activeConvoId
-            ? { ...c, updated_at: newMsgs[newMsgs.length - 1].created_at }
+            ? { ...c, updated_at: incoming[incoming.length - 1].created_at }
             : c
         ));
-      } catch { /* ignore polling errors */ }
-    }, POLL_INTERVAL_MS);
+      } catch { /* ignore */ }
+    }, FAST_POLL_MS);
 
-    return () => { if (pollRef.current) clearInterval(pollRef.current); };
+    return () => { if (fastPollRef.current) clearInterval(fastPollRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeConvoId, isLoggedIn, currentUser]);
+
+  /* ── READ-RECEIPT POLL: check if our sent msgs got is_read (2.5 s) ─ */
+  useEffect(() => {
+    if (readPollRef.current) clearInterval(readPollRef.current);
+    if (!activeConvoId || !isLoggedIn || !currentUser) return;
+
+    readPollRef.current = setInterval(async () => {
+      if (!unreadSentRef.current.size) return;
+      const minPending = Math.min(...unreadSentRef.current);
+      try {
+        const data = await api.chat.messages(activeConvoId, minPending - 1);
+        let changed = false;
+        data.forEach(m => {
+          if (unreadSentRef.current.has(m.id) && m.is_read) {
+            unreadSentRef.current.delete(m.id);
+            changed = true;
+          }
+        });
+        if (changed) {
+          /* get the full list of now-read IDs before clearing the set */
+          const readIds = data.filter(m => m.is_read && m.sender === currentUser.id).map(m => m.id);
+          if (readIds.length) {
+            setMessages(prev => prev.map(msg =>
+              msg.serverId && readIds.includes(msg.serverId)
+                ? { ...msg, status: "read" }
+                : msg
+            ));
+          }
+        }
+      } catch { /* ignore */ }
+    }, READ_POLL_MS);
+
+    return () => { if (readPollRef.current) clearInterval(readPollRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeConvoId, isLoggedIn, currentUser]);
+
+  /* ── TYPING POLL: is the other person typing? (1.5 s) ─── */
+  useEffect(() => {
+    if (typingPollRef.current) clearInterval(typingPollRef.current);
+    if (!activeConvoId || !isLoggedIn) return;
+
+    typingPollRef.current = setInterval(async () => {
+      try {
+        const { typing } = await api.chat.getTyping(activeConvoId);
+        setOtherTyping(typing);
+      } catch { /* ignore */ }
+    }, TYPING_POLL_MS);
+
+    return () => { if (typingPollRef.current) clearInterval(typingPollRef.current); };
+  }, [activeConvoId, isLoggedIn]);
 
   /* ── Auto-scroll ─────────────────────────────────────── */
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, otherTyping]);
 
-  /* ── Load appointment contacts when new chat panel opens ─ */
+  /* ── Appointment contacts ─────────────────────────────── */
   useEffect(() => {
     if (!showNewChat || !isLoggedIn) return;
     setApptContactsLoading(true);
-    api.appointments.contacts()
+    api.chat.appointmentContacts()
       .then(data => setApptContacts(data as ApptContact[]))
       .catch(() => setApptContacts([]))
       .finally(() => setApptContactsLoading(false));
   }, [showNewChat, isLoggedIn]);
 
-  /* ── User search for new chat ─────────────────────────── */
+  /* ── User search ──────────────────────────────────────── */
   useEffect(() => {
-    if (!userSearch.trim() || userSearch.length < 1) { setSearchResults([]); return; }
-    const timer = setTimeout(async () => {
+    if (!userSearch.trim()) { setSearchResults([]); return; }
+    const t = setTimeout(async () => {
       setSearchLoading(true);
       try {
         const roleFilter = currentUser?.role === "doctor" ? "patient" : "doctor";
         const results = await api.chat.searchUsers(userSearch, roleFilter);
         setSearchResults(results);
-      } catch {
-        setSearchResults([]);
-      } finally {
-        setSearchLoading(false);
-      }
-    }, 350);
-    return () => clearTimeout(timer);
+      } catch { setSearchResults([]); }
+      finally { setSearchLoading(false); }
+    }, 300);
+    return () => clearTimeout(t);
   }, [userSearch, currentUser]);
 
-  /* ── Start or open conversation with a user ───────────── */
+  /* ── Start or open convo ──────────────────────────────── */
   const startChatWith = async (user: UserBrief) => {
     setShowNewChat(false);
     setUserSearch("");
     setSearchResults([]);
     try {
       const convo = await api.chat.startConversation(user.id);
-      const existingIdx = convos.findIndex(c => c.id === convo.id);
-      if (existingIdx === -1) {
-        setConvos(prev => [convo, ...prev]);
-      }
+      setConvos(prev => prev.find(c => c.id === convo.id) ? prev : [convo, ...prev]);
       setActiveConvoId(convo.id);
       setMobileView("chat");
     } catch { /* ignore */ }
+  };
+
+  /* ── Typing signal to backend ─────────────────────────── */
+  const handleInputChange = (val: string) => {
+    setInput(val);
+    if (!activeConvoId) return;
+
+    /* send "typing: true" once per key sequence */
+    if (!isSendingTypingRef.current) {
+      isSendingTypingRef.current = true;
+      api.chat.setTyping(activeConvoId, true).catch(() => {});
+    }
+
+    /* reset debounce timer */
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    typingTimerRef.current = setTimeout(() => {
+      isSendingTypingRef.current = false;
+      if (activeConvoId) api.chat.setTyping(activeConvoId, false).catch(() => {});
+    }, TYPING_DEBOUNCE_MS);
   };
 
   /* ── Send message ─────────────────────────────────────── */
   const sendMessage = useCallback(async () => {
     const text = input.trim();
     if (!text || !activeConvoId || !currentUser) return;
+
+    /* clear typing signal immediately */
+    if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+    isSendingTypingRef.current = false;
+    api.chat.setTyping(activeConvoId, false).catch(() => {});
 
     const tempId = `tmp-${Date.now()}`;
     const localMsg: LocalMessage = {
@@ -294,18 +435,20 @@ export default function ChatPage() {
           ? { ...m, serverId: saved.id, status: "sent" }
           : m)
       );
+      /* track for read receipts */
+      unreadSentRef.current.add(saved.id);
+      lastMsgIdRef.current = Math.max(lastMsgIdRef.current, saved.id);
       setConvos(prev => prev.map(c =>
         c.id === activeConvoId
           ? { ...c, last_message: { text, created_at: saved.created_at, sender_name: currentUser.name }, updated_at: saved.created_at }
           : c
       ));
     } catch {
-      setMessages(prev => prev.map(m => m.tempId === tempId ? { ...m, status: "sending" } : m));
+      /* show error state (re-use "sending" look) */
     }
-
   }, [input, activeConvoId, currentUser, replyTo]);
 
-  /* ── Toggle reaction ──────────────────────────────────── */
+  /* ── Reaction toggle ──────────────────────────────────── */
   const toggleReaction = (msgKey: string, emoji: string) => {
     setReactions(prev => {
       const cur = prev[msgKey] ?? [];
@@ -322,7 +465,8 @@ export default function ChatPage() {
   /* ── Filtered convo list ──────────────────────────────── */
   const filteredConvos = useMemo(() =>
     convos.filter(c =>
-      !search || c.other_user?.name?.toLowerCase().includes(search.toLowerCase()) ||
+      !search ||
+      c.other_user?.name?.toLowerCase().includes(search.toLowerCase()) ||
       c.last_message?.text?.toLowerCase().includes(search.toLowerCase())
     ), [convos, search]);
 
@@ -337,18 +481,10 @@ export default function ChatPage() {
               <i className="bi bi-chat-heart-fill text-4xl text-[#2C74B3]" />
             </div>
             <h2 className="text-2xl font-bold text-[#0A2647] mb-3">Sign in to start chatting</h2>
-            <p className="text-gray-500 mb-6">
-              Chat directly with your doctors or patients. Securely, in real time.
-            </p>
+            <p className="text-gray-500 mb-6">Chat directly with your doctors or patients. Securely, in real time.</p>
             <div className="flex gap-3 justify-center">
-              <a href="/auth/login"
-                className="bg-[#2C74B3] text-white font-semibold px-6 py-3 rounded-xl hover:bg-[#0A2647] transition-all">
-                Sign In
-              </a>
-              <a href="/auth/register"
-                className="border-2 border-[#2C74B3] text-[#2C74B3] font-semibold px-6 py-3 rounded-xl hover:bg-[#2C74B3] hover:text-white transition-all">
-                Register
-              </a>
+              <a href="/auth/login" className="bg-[#2C74B3] text-white font-semibold px-6 py-3 rounded-xl hover:bg-[#0A2647] transition-all">Sign In</a>
+              <a href="/auth/register" className="border-2 border-[#2C74B3] text-[#2C74B3] font-semibold px-6 py-3 rounded-xl hover:bg-[#2C74B3] hover:text-white transition-all">Register</a>
             </div>
           </div>
         </div>
@@ -368,15 +504,15 @@ export default function ChatPage() {
           40%          { transform: translateY(-8px); opacity:1 }
         }
         @keyframes msgSlideIn {
-          from { opacity:0; transform: translateY(10px) scale(.97); }
+          from { opacity:0; transform: translateY(8px) scale(.98); }
           to   { opacity:1; transform: translateY(0) scale(1); }
         }
         @keyframes reactionPop {
           from { opacity:0; transform: scale(.6) translateY(6px); }
           to   { opacity:1; transform: scale(1) translateY(0); }
         }
-        .msg-new    { animation: msgSlideIn .22s ease forwards; }
-        .react-pop  { animation: reactionPop .18s ease forwards; }
+        .msg-new    { animation: msgSlideIn .18s ease forwards; }
+        .react-pop  { animation: reactionPop .15s ease forwards; }
         .chat-bg {
           background-color: #EEF2F7;
           background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23c5d3e0' fill-opacity='0.18'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
@@ -411,14 +547,13 @@ export default function ChatPage() {
                 className="w-9 h-9 rounded-full hover:bg-white/10 flex items-center justify-center transition-colors"
                 title="New chat"
               >
-                <i className="bi bi-pencil-square text-lg" />
+                <i className={`bi ${showNewChat ? "bi-x-lg" : "bi-pencil-square"} text-lg`} />
               </button>
             </div>
 
             {/* New chat panel */}
             {showNewChat && (
               <div className="bg-[#EFF6FF] border-b border-blue-100 px-3 py-3">
-                {/* Search input */}
                 <div className="relative mb-2">
                   <i className="bi bi-search absolute left-3 top-2.5 text-gray-400 text-sm" />
                   <input
@@ -430,16 +565,16 @@ export default function ChatPage() {
                   />
                 </div>
 
-                <div className="max-h-64 overflow-y-auto">
+                <div className="max-h-64 overflow-y-auto scrollbar-thin">
                   {/* Search results */}
-                  {userSearch.trim() && (
+                  {userSearch.trim() ? (
                     <>
                       {searchLoading && (
                         <div className="space-y-1 py-1">
                           {[1,2].map(i => (
                             <div key={i} className="flex items-center gap-2 px-2 py-2">
                               <div className="w-9 h-9 rounded-full bg-blue-100 animate-pulse flex-shrink-0" />
-                              <div className="flex-1 space-y-1">
+                              <div className="flex-1 space-y-1.5">
                                 <div className="h-3 bg-blue-100 rounded animate-pulse w-3/4" />
                                 <div className="h-2.5 bg-blue-100 rounded animate-pulse w-1/2" />
                               </div>
@@ -461,17 +596,15 @@ export default function ChatPage() {
                         </button>
                       ))}
                     </>
-                  )}
-
-                  {/* Appointment-based suggestions (shown when not searching) */}
-                  {!userSearch.trim() && (
+                  ) : (
+                    /* Appointment-based suggestions */
                     <>
                       {apptContactsLoading && (
                         <div className="space-y-1 py-1">
                           {[1,2].map(i => (
                             <div key={i} className="flex items-center gap-2 px-2 py-2">
                               <div className="w-9 h-9 rounded-full bg-blue-100 animate-pulse flex-shrink-0" />
-                              <div className="flex-1 space-y-1">
+                              <div className="flex-1 space-y-1.5">
                                 <div className="h-3 bg-blue-100 rounded animate-pulse w-3/4" />
                                 <div className="h-2.5 bg-blue-100 rounded animate-pulse w-1/2" />
                               </div>
@@ -506,9 +639,7 @@ export default function ChatPage() {
                         </>
                       )}
                       {!apptContactsLoading && apptContacts.length === 0 && (
-                        <p className="text-xs text-gray-400 text-center py-2">
-                          Type a name to search
-                        </p>
+                        <p className="text-xs text-gray-400 text-center py-2">Type a name to search</p>
                       )}
                     </>
                   )}
@@ -516,258 +647,255 @@ export default function ChatPage() {
               </div>
             )}
 
-            {/* Search */}
-            <div className="px-3 py-2 bg-[#F0F2F5]">
+            {/* Search bar */}
+            <div className="px-3 py-2 border-b border-gray-100">
               <div className="relative">
                 <i className="bi bi-search absolute left-3 top-2.5 text-gray-400 text-sm" />
-                <input
-                  value={search}
-                  onChange={e => setSearch(e.target.value)}
-                  placeholder="Search conversations"
-                  className="w-full bg-white rounded-full pl-9 pr-4 py-2 text-sm text-[#0A2647] placeholder-gray-400 focus:outline-none border border-gray-200"
-                />
+                <input value={search} onChange={e => setSearch(e.target.value)}
+                  placeholder="Search conversations…"
+                  className="w-full bg-gray-50 rounded-full pl-9 pr-4 py-2 text-sm text-gray-700 placeholder-gray-400 focus:outline-none focus:ring-1 focus:ring-[#2C74B3]/30" />
               </div>
             </div>
 
             {/* Conversation list */}
             <div className="flex-1 overflow-y-auto scrollbar-thin">
-              {loadingConvos && (
-                <div className="divide-y divide-gray-100">
-                  {Array.from({length: 5}).map((_, i) => (
-                    <div key={i} className="flex items-center gap-3 px-4 py-3">
-                      <div className="w-12 h-12 rounded-full bg-gray-200 animate-pulse flex-shrink-0" />
-                      <div className="flex-1 space-y-2">
-                        <div className="h-3.5 bg-gray-200 rounded animate-pulse w-2/3" />
-                        <div className="h-3 bg-gray-100 rounded animate-pulse w-4/5" />
+              {loadingConvos ? (
+                <ConvoSkeleton />
+              ) : filteredConvos.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-48 text-center px-6">
+                  <i className="bi bi-chat-dots text-4xl text-gray-200 mb-3" />
+                  <p className="text-sm text-gray-400">No conversations yet.<br />Tap the pencil to start one.</p>
+                </div>
+              ) : (
+                <div className="py-1">
+                  {filteredConvos.map(c => (
+                    <button key={c.id}
+                      onClick={() => { setActiveConvoId(c.id); setMobileView("chat"); }}
+                      className={`w-full flex items-center gap-3 px-4 py-3 hover:bg-gray-50 transition-colors text-left ${activeConvoId === c.id ? "bg-blue-50 border-l-4 border-[#2C74B3]" : "border-l-4 border-transparent"}`}
+                    >
+                      <div className="relative flex-shrink-0">
+                        <Avatar name={c.other_user?.name ?? "?"} role={c.other_user?.role ?? "patient"} size={11} />
+                        {c.unread_count > 0 && (
+                          <span className="absolute -top-1 -right-1 w-4 h-4 bg-[#2C74B3] text-white text-[9px] rounded-full flex items-center justify-center font-bold">
+                            {c.unread_count > 9 ? "9+" : c.unread_count}
+                          </span>
+                        )}
                       </div>
-                      <div className="h-2.5 w-8 bg-gray-100 rounded animate-pulse" />
-                    </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex justify-between items-baseline">
+                          <span className="font-semibold text-sm text-[#0A2647] truncate">
+                            {c.other_user?.role === "doctor" ? "Dr. " : ""}{c.other_user?.name}
+                          </span>
+                          <span className="text-[10px] text-gray-400 flex-shrink-0 ml-1">{c.last_message ? formatTime(c.last_message.created_at) : ""}</span>
+                        </div>
+                        <div className="text-xs text-gray-500 truncate mt-0.5">
+                          {c.last_message?.text ?? "Start a conversation"}
+                        </div>
+                      </div>
+                    </button>
                   ))}
                 </div>
               )}
-
-              {!loadingConvos && filteredConvos.length === 0 && (
-                <div className="text-center py-12 px-6">
-                  <i className="bi bi-chat-dots text-5xl text-gray-200 block mb-3" />
-                  <p className="text-gray-500 text-sm">No conversations yet.</p>
-                  <button
-                    onClick={() => setShowNewChat(true)}
-                    className="mt-3 text-[#2C74B3] text-sm font-semibold hover:underline"
-                  >
-                    Start a new chat
-                  </button>
-                </div>
-              )}
-
-              {filteredConvos.map(c => (
-                <button
-                  key={c.id}
-                  onClick={() => { setActiveConvoId(c.id); setMobileView("chat"); }}
-                  className={`w-full flex items-center gap-3 px-4 py-3 border-b border-gray-100 hover:bg-[#F0F2F5] transition-colors text-left ${activeConvoId === c.id ? "bg-[#EFF6FF] border-l-4 border-l-[#2C74B3]" : ""}`}
-                >
-                  <div className="relative flex-shrink-0">
-                    <Avatar name={c.other_user?.name ?? "?"} role={c.other_user?.role ?? "patient"} size={12} />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-[#0A2647] text-sm truncate">
-                        {c.other_user?.role === "doctor" ? "Dr. " : ""}{c.other_user?.name ?? "Unknown"}
-                      </span>
-                      <span className="text-gray-400 text-xs ml-2 flex-shrink-0">
-                        {c.last_message ? formatTime(c.last_message.created_at) : ""}
-                      </span>
-                    </div>
-                    <div className="flex items-center justify-between mt-0.5">
-                      <span className="text-gray-500 text-xs truncate">
-                        {c.last_message?.text ?? "Say hello!"}
-                      </span>
-                      {c.unread_count > 0 && (
-                        <span className="ml-2 bg-[#2C74B3] text-white text-xs rounded-full w-5 h-5 flex items-center justify-center flex-shrink-0">
-                          {c.unread_count}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </button>
-              ))}
             </div>
           </aside>
 
-          {/* ══ CHAT AREA ════════════════════════════════════════ */}
-          <div className={`${mobileView === "list" ? "hidden md:flex" : "flex"} flex-1 flex-col overflow-hidden`}>
+          {/* ══ CHAT AREA ═════════════════════════════════════════ */}
+          <main className={`
+            ${mobileView === "list" ? "hidden md:flex" : "flex"}
+            flex-1 flex-col overflow-hidden bg-white
+          `}>
             {!activeConvoId ? (
-              <div className="flex-1 flex items-center justify-center bg-[#F8FAFC]">
+              /* Empty state */
+              <div className="flex-1 flex items-center justify-center chat-bg">
                 <div className="text-center">
-                  <div className="w-24 h-24 bg-[#EFF6FF] rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i className="bi bi-chat-heart-fill text-5xl text-[#2C74B3]" />
+                  <div className="w-24 h-24 bg-white/70 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+                    <i className="bi bi-chat-heart text-5xl text-[#2C74B3]" />
                   </div>
-                  <h3 className="text-xl font-bold text-[#0A2647]">Select a conversation</h3>
-                  <p className="text-gray-500 mt-2 text-sm">or start a new one by clicking the pencil icon</p>
+                  <h3 className="text-xl font-bold text-[#0A2647] mb-2">Select a conversation</h3>
+                  <p className="text-gray-500 text-sm">or tap the pencil icon to start a new one</p>
                 </div>
               </div>
             ) : (
               <>
                 {/* Chat header */}
-                <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 flex-shrink-0">
-                  <button
-                    className="md:hidden w-9 h-9 rounded-full flex items-center justify-center text-[#0A2647] hover:bg-gray-100"
-                    onClick={() => setMobileView("list")}
-                  >
-                    <i className="bi bi-arrow-left text-lg" />
+                <div className="bg-white border-b border-gray-200 px-4 py-3 flex items-center gap-3 flex-shrink-0 shadow-sm">
+                  <button onClick={() => setMobileView("list")}
+                    className="md:hidden w-9 h-9 flex items-center justify-center rounded-full hover:bg-gray-100">
+                    <i className="bi bi-arrow-left text-[#0A2647]" />
                   </button>
-                  {activeConvo && (
+                  {activeConvo?.other_user && (
                     <>
-                      <Avatar name={activeConvo.other_user?.name ?? "?"} role={activeConvo.other_user?.role ?? "patient"} size={10} />
-                      <div className="flex-1">
+                      <div className="relative">
+                        <Avatar name={activeConvo.other_user.name} role={activeConvo.other_user.role} size={10} />
+                        <span className="absolute bottom-0 right-0 w-3 h-3 bg-green-400 border-2 border-white rounded-full" />
+                      </div>
+                      <div className="flex-1 min-w-0">
                         <div className="font-semibold text-[#0A2647]">
-                          {activeConvo.other_user?.role === "doctor" ? "Dr. " : ""}{activeConvo.other_user?.name}
+                          {activeConvo.other_user.role === "doctor" ? "Dr. " : ""}{activeConvo.other_user.name}
                         </div>
-                        <div className="text-xs text-[#2C74B3] capitalize">{activeConvo.other_user?.role}</div>
+                        <div className="text-xs text-gray-400 capitalize flex items-center gap-1">
+                          {otherTyping
+                            ? <><span className="text-green-500 font-medium">typing</span><span className="flex gap-0.5">{[0,1,2].map(i=><span key={i} className="w-1 h-1 bg-green-500 rounded-full" style={{animation:`typingBounce 1.2s ${i*0.18}s infinite`}} />)}</span></>
+                            : <><span className="w-2 h-2 rounded-full bg-green-400 inline-block" /> Online</>
+                          }
+                        </div>
                       </div>
                     </>
                   )}
                 </div>
 
-                {/* Messages */}
-                <div className="flex-1 overflow-y-auto scrollbar-thin chat-bg px-4 py-4 space-y-1">
-                  {loadingMsgs && (
-                    <div className="space-y-4 py-2">
-                      {[80, 55, 70, 45, 65].map((w, i) => (
-                        <div key={i} className={`flex ${i % 2 === 0 ? "justify-end" : "justify-start"} items-end gap-2`}>
-                          {i % 2 !== 0 && <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse flex-shrink-0" />}
-                          <div className={`h-10 bg-gray-200 rounded-2xl animate-pulse`} style={{ width: `${w}%`, maxWidth: "70%" }} />
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                {/* Messages area */}
+                <div className="flex-1 overflow-y-auto scrollbar-thin chat-bg px-2 py-2">
+                  {loadingMsgs ? (
+                    <MsgSkeleton />
+                  ) : (
+                    <>
+                      {messages.map((msg, idx) => {
+                        const mine = msg.sender_id === currentUser.id;
+                        const msgReactions = reactions[msg.tempId] ?? [];
+                        const showAvatar = !mine && (idx === 0 || messages[idx - 1].sender_id !== msg.sender_id);
 
-                  {!loadingMsgs && messages.length === 0 && (
-                    <div className="text-center py-12 text-gray-400 text-sm">
-                      <i className="bi bi-chat-dots text-4xl block mb-3 text-gray-200" />
-                      No messages yet. Say hello!
-                    </div>
-                  )}
+                        return (
+                          <div key={msg.tempId}
+                            className="msg-new relative group"
+                            onMouseEnter={() => setHoverMsgId(msg.tempId)}
+                            onMouseLeave={() => { setHoverMsgId(null); setShowReactions(null); }}
+                          >
+                            {/* Reply-to preview */}
+                            {msg.replyTo && (
+                              <div className={`flex ${mine ? "justify-end" : "justify-start"} px-10 mb-0.5`}>
+                                <div className="text-xs text-gray-400 italic bg-gray-100 rounded px-2 py-1 max-w-[60%] truncate border-l-2 border-[#2C74B3]">
+                                  {msg.replyTo.name}: {msg.replyTo.text}
+                                </div>
+                              </div>
+                            )}
 
-                  {messages.map((msg) => {
-                    const isMe = msg.sender_id === currentUser.id || msg.tempId.startsWith("tmp-");
-                    const msgKey = msg.tempId;
-                    const msgReactions = reactions[msgKey] ?? [];
+                            <div className={`flex items-end gap-2 px-2 py-0.5 ${mine ? "justify-end" : "justify-start"}`}>
+                              {/* Other user avatar */}
+                              {!mine && (
+                                <div className="w-8 flex-shrink-0">
+                                  {showAvatar && <Avatar name={msg.sender_name} role={msg.sender_role} size={8} />}
+                                </div>
+                              )}
 
-                    return (
-                      <div
-                        key={msgKey}
-                        className={`flex ${isMe ? "justify-end" : "justify-start"} group msg-new`}
-                        onMouseEnter={() => setHoverMsgId(msgKey)}
-                        onMouseLeave={() => { setHoverMsgId(null); setShowReactions(null); }}
-                      >
-                        {!isMe && (
-                          <div className="mr-2 mt-auto mb-1 flex-shrink-0">
-                            <Avatar name={msg.sender_name} role={msg.sender_role} size={8} />
-                          </div>
-                        )}
-                        <div className="max-w-[65%]">
-                          {/* Reply reference */}
-                          {msg.replyTo && (
-                            <div className={`text-xs px-3 py-1.5 rounded-xl mb-1 border-l-4 ${isMe ? "bg-blue-800/30 border-blue-300 text-blue-100 ml-auto" : "bg-gray-100 border-gray-300 text-gray-500"}`}>
-                              <span className="font-semibold">{msg.replyTo.name}</span>
-                              <p className="truncate">{msg.replyTo.text}</p>
-                            </div>
-                          )}
+                              {/* Bubble */}
+                              <div className={`relative max-w-[72%] sm:max-w-[60%] ${mine ? "items-end" : "items-start"} flex flex-col`}>
+                                {/* Sender label for others */}
+                                {!mine && showAvatar && (
+                                  <span className="text-[10px] text-gray-400 font-medium px-1 mb-0.5">{msg.sender_name}</span>
+                                )}
 
-                          {/* Bubble */}
-                          <div className={`relative px-4 py-2.5 rounded-2xl shadow-sm ${isMe ? "bg-[#2C74B3] text-white rounded-br-none" : "bg-white text-[#0A2647] rounded-bl-none"}`}>
-                            <p className="text-sm leading-relaxed whitespace-pre-wrap break-words">{msg.text}</p>
-                            <div className={`flex items-center gap-1 mt-1 ${isMe ? "justify-end" : "justify-start"}`}>
-                              <span className={`text-[10px] ${isMe ? "text-white/60" : "text-gray-400"}`}>
-                                {formatTime(msg.time)}
-                              </span>
-                              {isMe && <StatusIcon status={msg.status} />}
-                            </div>
-                          </div>
+                                <div className={`px-4 py-2.5 rounded-2xl text-sm leading-relaxed shadow-sm
+                                  ${mine
+                                    ? "bg-gradient-to-br from-[#2C74B3] to-[#0A2647] text-white rounded-br-none"
+                                    : "bg-white text-[#1a1a2e] rounded-bl-none"
+                                  }`}>
+                                  {msg.text}
+                                </div>
 
-                          {/* Reactions */}
-                          {msgReactions.length > 0 && (
-                            <div className={`flex flex-wrap gap-1 mt-1 ${isMe ? "justify-end" : "justify-start"}`}>
-                              {msgReactions.map(r => (
-                                <button key={r.emoji}
-                                  onClick={() => toggleReaction(msgKey, r.emoji)}
-                                  className={`text-xs px-2 py-0.5 rounded-full border react-pop ${r.mine ? "bg-blue-50 border-blue-200" : "bg-gray-50 border-gray-200"}`}>
-                                  {r.emoji} {r.count}
-                                </button>
-                              ))}
-                            </div>
-                          )}
+                                {/* Time + tick */}
+                                <div className={`flex items-center gap-1 mt-0.5 px-1 ${mine ? "justify-end" : "justify-start"}`}>
+                                  <span className="text-[10px] text-gray-400">{formatTime(msg.time)}</span>
+                                  {mine && <TickIcon status={msg.status} />}
+                                </div>
 
-                          {/* Hover actions */}
-                          {hoverMsgId === msgKey && (
-                            <div className={`flex items-center gap-1 mt-1 ${isMe ? "justify-end" : "justify-start"}`}>
-                              <div className="relative">
-                                <button
-                                  onClick={() => setShowReactions(showReactions === msgKey ? null : msgKey)}
-                                  className="w-7 h-7 rounded-full bg-white shadow border border-gray-200 flex items-center justify-center text-gray-500 hover:text-[#2C74B3] text-sm"
-                                >
-                                  <i className="bi bi-emoji-smile" />
-                                </button>
-                                {showReactions === msgKey && (
-                                  <div className={`absolute bottom-9 react-pop flex gap-1 bg-white border border-gray-200 rounded-2xl px-2 py-1 shadow-lg z-10 ${isMe ? "right-0" : "left-0"}`}>
-                                    {REACTION_EMOJIS.map(e => (
-                                      <button key={e} onClick={() => toggleReaction(msgKey, e)}
-                                        className="text-lg hover:scale-125 transition-transform">{e}</button>
+                                {/* Reactions */}
+                                {msgReactions.length > 0 && (
+                                  <div className="flex flex-wrap gap-1 mt-1 px-1">
+                                    {msgReactions.map(r => (
+                                      <button key={r.emoji}
+                                        onClick={() => toggleReaction(msg.tempId, r.emoji)}
+                                        className={`text-xs px-1.5 py-0.5 rounded-full border transition-colors ${r.mine ? "bg-blue-50 border-blue-200" : "bg-gray-50 border-gray-200"}`}>
+                                        {r.emoji} {r.count > 1 && r.count}
+                                      </button>
                                     ))}
                                   </div>
                                 )}
                               </div>
-                              <button
-                                onClick={() => setReplyTo({ text: msg.text, name: msg.sender_name })}
-                                className="w-7 h-7 rounded-full bg-white shadow border border-gray-200 flex items-center justify-center text-gray-500 hover:text-[#2C74B3] text-sm"
-                              >
-                                <i className="bi bi-reply" />
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    );
-                  })}
 
-                  {otherTyping && <TypingDots />}
-                  <div ref={messagesEndRef} />
+                              {/* Action buttons on hover */}
+                              {hoverMsgId === msg.tempId && (
+                                <div className={`flex items-center gap-1 mb-5 ${mine ? "order-first" : "order-last"}`}>
+                                  {/* React */}
+                                  <div className="relative">
+                                    <button onClick={() => setShowReactions(v => v === msg.tempId ? null : msg.tempId)}
+                                      className="w-7 h-7 rounded-full bg-white shadow flex items-center justify-center hover:bg-gray-100 text-sm transition-colors">
+                                      😊
+                                    </button>
+                                    {showReactions === msg.tempId && (
+                                      <div className={`react-pop absolute bottom-9 ${mine ? "right-0" : "left-0"} flex gap-1 bg-white shadow-lg rounded-full px-2 py-1.5 z-10`}>
+                                        {REACTION_EMOJIS.map(emoji => (
+                                          <button key={emoji}
+                                            onClick={() => toggleReaction(msg.tempId, emoji)}
+                                            className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-gray-100 text-lg transition-transform hover:scale-125">
+                                            {emoji}
+                                          </button>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                  {/* Reply */}
+                                  <button
+                                    onClick={() => setReplyTo({ text: msg.text, name: msg.sender_name })}
+                                    className="w-7 h-7 rounded-full bg-white shadow flex items-center justify-center hover:bg-gray-100 transition-colors">
+                                    <i className="bi bi-reply text-gray-500 text-sm" />
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+
+                      {/* Typing indicator */}
+                      {otherTyping && activeConvo?.other_user && (
+                        <TypingDots name={activeConvo.other_user.name} />
+                      )}
+
+                      <div ref={messagesEndRef} />
+                    </>
+                  )}
                 </div>
 
-                {/* Reply bar */}
-                {replyTo && (
-                  <div className="bg-[#EFF6FF] border-t border-blue-100 px-4 py-2 flex items-center gap-3">
-                    <div className="flex-1 border-l-4 border-[#2C74B3] pl-3">
-                      <div className="text-xs font-semibold text-[#2C74B3]">{replyTo.name}</div>
-                      <div className="text-xs text-gray-500 truncate">{replyTo.text}</div>
+                {/* Input area */}
+                <div className="bg-white border-t border-gray-100 px-3 py-2 flex-shrink-0">
+                  {/* Reply preview */}
+                  {replyTo && (
+                    <div className="flex items-center justify-between bg-blue-50 rounded-xl px-3 py-2 mb-2 border-l-4 border-[#2C74B3]">
+                      <div className="text-xs text-gray-600">
+                        <span className="font-semibold text-[#2C74B3]">{replyTo.name}</span>
+                        <span className="mx-1">·</span>
+                        <span className="truncate">{replyTo.text}</span>
+                      </div>
+                      <button onClick={() => setReplyTo(null)} className="text-gray-400 hover:text-gray-600 ml-2">
+                        <i className="bi bi-x text-sm" />
+                      </button>
                     </div>
-                    <button onClick={() => setReplyTo(null)} className="text-gray-400 hover:text-gray-600">
-                      <i className="bi bi-x-lg" />
+                  )}
+
+                  <div className="flex items-center gap-2">
+                    <div className="flex-1 flex items-center gap-2 bg-gray-50 rounded-full px-4 py-2.5 border border-gray-200 focus-within:border-[#2C74B3]/50 focus-within:bg-white transition-colors">
+                      <input
+                        ref={inputRef}
+                        value={input}
+                        onChange={e => handleInputChange(e.target.value)}
+                        onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
+                        placeholder="Type a message…"
+                        className="flex-1 bg-transparent text-sm text-gray-700 placeholder-gray-400 focus:outline-none"
+                      />
+                    </div>
+
+                    <button
+                      onClick={sendMessage}
+                      disabled={!input.trim()}
+                      className="w-11 h-11 rounded-full bg-[#2C74B3] disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center shadow hover:bg-[#0A2647] transition-colors active:scale-95">
+                      <i className="bi bi-send-fill text-white" />
                     </button>
                   </div>
-                )}
-
-                {/* Input */}
-                <div className="bg-white border-t border-gray-200 px-4 py-3 flex items-center gap-3 flex-shrink-0">
-                  <input
-                    ref={inputRef}
-                    value={input}
-                    onChange={e => setInput(e.target.value)}
-                    onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-                    placeholder="Type a message…"
-                    className="flex-1 bg-[#F0F2F5] rounded-full px-4 py-2.5 text-sm text-[#0A2647] placeholder-gray-400 focus:outline-none border border-gray-200 focus:border-[#2C74B3] transition-colors"
-                  />
-                  <button
-                    onClick={sendMessage}
-                    disabled={!input.trim()}
-                    className="w-10 h-10 rounded-full bg-[#2C74B3] text-white flex items-center justify-center hover:bg-[#0A2647] transition-all disabled:opacity-40 flex-shrink-0"
-                  >
-                    <i className="bi bi-send-fill text-sm" />
-                  </button>
                 </div>
               </>
             )}
-          </div>
+          </main>
         </div>
       </div>
     </>

@@ -39,10 +39,10 @@ export interface ChatConversation {
   updated_at: string;
 }
 
-/* ── Token storage (sessionStorage scoped to tab, cleared on close) ─── */
+/* ── Token storage (localStorage — persists across tabs and browser restarts) ─── */
 const TOKEN_KEY = "mc_access_token";
 
-function setCookie(name: string, value: string, days = 1): void {
+function setCookie(name: string, value: string, days = 30): void {
   if (typeof document === "undefined") return;
   const expires = new Date(Date.now() + days * 864e5).toUTCString();
   document.cookie = `${name}=${encodeURIComponent(value)}; expires=${expires}; path=/; SameSite=Lax`;
@@ -55,17 +55,17 @@ function clearCookie(name: string): void {
 
 export const tokenStore = {
   get: (): string | null => {
-    try { return sessionStorage.getItem(TOKEN_KEY); } catch { return null; }
+    try { return localStorage.getItem(TOKEN_KEY); } catch { return null; }
   },
   set: (token: string): void => {
     try {
-      sessionStorage.setItem(TOKEN_KEY, token);
-      setCookie("mc_access_token", token);
+      localStorage.setItem(TOKEN_KEY, token);
+      setCookie("mc_access_token", token, 30);
     } catch {}
   },
   clear: (): void => {
     try {
-      sessionStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(TOKEN_KEY);
       clearCookie("mc_access_token");
     } catch {}
   },
@@ -75,19 +75,19 @@ const USER_KEY = "mc_user";
 export const userStore = {
   get: (): UserBrief | null => {
     try {
-      const raw = sessionStorage.getItem(USER_KEY);
+      const raw = localStorage.getItem(USER_KEY);
       return raw ? (JSON.parse(raw) as UserBrief) : null;
     } catch { return null; }
   },
   set: (user: UserBrief): void => {
     try {
-      sessionStorage.setItem(USER_KEY, JSON.stringify(user));
-      setCookie("mc_user_role", user.role);
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+      setCookie("mc_user_role", user.role, 30);
     } catch {}
   },
   clear: (): void => {
     try {
-      sessionStorage.removeItem(USER_KEY);
+      localStorage.removeItem(USER_KEY);
       clearCookie("mc_user_role");
     } catch {}
   },
@@ -298,15 +298,26 @@ export const api = {
         method: "POST",
         body: JSON.stringify({ user_id: userId }),
       }),
-    messages: (convoId: number) =>
-      request<ChatMsg[]>(`/chat/conversations/${convoId}/messages/`),
+    messages: (convoId: number, afterId?: number) =>
+      request<ChatMsg[]>(`/chat/conversations/${convoId}/messages/${afterId ? `?after=${afterId}` : ""}`),
     send: (convoId: number, text: string, messageType = "text") =>
       request<ChatMsg>(`/chat/conversations/${convoId}/send/`, {
         method: "POST",
         body: JSON.stringify({ text: sanitise(text), message_type: messageType }),
       }),
+    markRead: (convoId: number) =>
+      request<{ marked: number }>(`/chat/conversations/${convoId}/mark-read/`, { method: "POST" }),
+    getTyping: (convoId: number) =>
+      request<{ typing: boolean }>(`/chat/conversations/${convoId}/typing/`),
+    setTyping: (convoId: number, typing: boolean) =>
+      request<{ ok: boolean }>(`/chat/conversations/${convoId}/typing/`, {
+        method: "POST",
+        body: JSON.stringify({ typing }),
+      }),
     searchUsers: (query: string, role?: string) =>
       request<UserBrief[]>(`/chat/users/search/${toQuery({ q: query, role })}`),
+    appointmentContacts: () =>
+      request<{ id: number; name: string; email: string; role: string; appointment_status: string; appointment_date: string }[]>("/chat/appointment-contacts/"),
   },
 
   /* ── Doctors ────────────────────────────────────────────────── */

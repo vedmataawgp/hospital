@@ -1,3 +1,4 @@
+import time
 from rest_framework import status
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated
@@ -7,6 +8,9 @@ from .models import Conversation, ChatMessage
 from .serializers import ConversationSerializer, ChatMessageSerializer, UserBriefSerializer
 from apps.accounts.models import User
 from apps.appointments.models import Appointment
+
+# In-memory typing state: { convo_id: { user_id: timestamp } }
+_typing_state: dict = {}
 
 
 @api_view(['GET'])
@@ -56,11 +60,64 @@ def conversation_messages(request, convo_id):
     except Conversation.DoesNotExist:
         return Response({'error': 'Conversation not found'}, status=status.HTTP_404_NOT_FOUND)
 
+    # Mark incoming messages as read
     ChatMessage.objects.filter(conversation=convo).exclude(sender=request.user).update(is_read=True)
 
-    messages = convo.messages.select_related('sender').all()
-    serializer = ChatMessageSerializer(messages, many=True)
+    messages = convo.messages.select_related('sender')
+
+    # Support incremental fetch: ?after=<msg_id> returns only newer messages
+    after_id = request.query_params.get('after')
+    if after_id:
+        try:
+            messages = messages.filter(id__gt=int(after_id))
+        except (ValueError, TypeError):
+            pass
+
+    serializer = ChatMessageSerializer(messages.all(), many=True)
     return Response(serializer.data)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def mark_read(request, convo_id):
+    try:
+        convo = Conversation.objects.get(id=convo_id, participants=request.user)
+    except Conversation.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+    updated = ChatMessage.objects.filter(conversation=convo).exclude(sender=request.user).update(is_read=True)
+    return Response({'marked': updated})
+
+
+@api_view(['GET', 'POST'])
+@permission_classes([IsAuthenticated])
+def typing_status(request, convo_id):
+    TYPING_TTL = 4  # seconds — typing expires if no update
+    try:
+        convo = Conversation.objects.get(id=convo_id, participants=request.user)
+    except Conversation.DoesNotExist:
+        return Response({'error': 'Not found'}, status=status.HTTP_404_NOT_FOUND)
+
+    now = time.time()
+
+    if request.method == 'POST':
+        is_typing = request.data.get('typing', False)
+        if convo_id not in _typing_state:
+            _typing_state[convo_id] = {}
+        if is_typing:
+            _typing_state[convo_id][request.user.id] = now
+        else:
+            _typing_state[convo_id].pop(request.user.id, None)
+        return Response({'ok': True})
+
+    # GET: return whether the other participant is currently typing
+    other_user = convo.get_other_participant(request.user)
+    if not other_user:
+        return Response({'typing': False})
+
+    convo_typing = _typing_state.get(convo_id, {})
+    last_ts = convo_typing.get(other_user.id, 0)
+    is_typing = (now - last_ts) < TYPING_TTL
+    return Response({'typing': is_typing})
 
 
 @api_view(['POST'])
