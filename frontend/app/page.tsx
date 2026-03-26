@@ -46,7 +46,7 @@ export default function Home() {
       .finally(() => setLoadingDepts(false));
 
     api.doctors.list()
-      .then(res => setDoctors(res.results.slice(0, 3)))
+      .then(res => setDoctors((res.data ?? []).slice(0, 3)))
       .catch(() => setDoctors(fallbackDoctors))
       .finally(() => setLoadingDocs(false));
   }, []);

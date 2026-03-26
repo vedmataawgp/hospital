@@ -344,7 +344,7 @@ export const api = {
     confirm: (id: number) =>
       request<Appointment>(`/appointments/${id}/confirm/`, { method: "POST" }),
     contacts: () =>
-      request<UserBrief[]>("/chat/appointment-contacts/"),
+      request<(UserBrief & { appointment_status: string; appointment_date: string })[]>("/chat/appointment-contacts/"),
   },
 
   /* ── Consultation / Chat ─────────────────────────────────────── */

@@ -67,7 +67,7 @@ function DoctorDiscovery() {
   );
 
   const { data, loading, error, refetch } = useApi(fetcher, [query]);
-  const doctors: Doctor[] = data?.results ?? data?.data ?? (Array.isArray(data) ? (data as Doctor[]) : []);
+  const doctors: Doctor[] = data?.data ?? (Array.isArray(data) ? (data as Doctor[]) : []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();

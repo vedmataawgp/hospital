@@ -102,7 +102,7 @@ export default function DoctorDashboard() {
 
   const recentAppts: Appointment[] = (dash.data?.recentAppointments ?? []).map((a: Appointment) => ({
     ...a,
-    status: apptStatuses[a.id] ?? a.status,
+    status: (apptStatuses[a.id] ?? a.status) as Appointment["status"],
   }));
   const patients: Patient[]           = pats.data ?? [];
   const prescriptions: Prescription[] = rxs.data ?? [];
@@ -143,7 +143,7 @@ export default function DoctorDashboard() {
 
   const handleChat = async (userId?: number) => {
     if (userId) {
-      try { await api.chat.start(userId); } catch { /* ok */ }
+      try { await api.chat.startConversation(userId); } catch { /* ok */ }
     }
     router.push("/chat");
   };
@@ -203,11 +203,7 @@ export default function DoctorDashboard() {
                         busy={busyId === a.id}
                         onConfirm={() => handleConfirm(a.id)}
                         onReject={() => handleReject(a.id)}
-                        onChat={() => {
-                          const uid = (a as Record<string,unknown>).patientUserId as number | undefined
-                            ?? (a as Record<string,unknown>).patient_user_id as number | undefined;
-                          handleChat(uid);
-                        }}
+                        onChat={() => handleChat(a.patientUserId)}
                       />
                     ))}
                   {!dash.loading && recentAppts.length === 0 && (
@@ -300,7 +296,7 @@ export default function DoctorDashboard() {
                           <div className="text-[#0A2647] text-sm font-semibold">#{p.id}</div>
                         </div>
                         <button
-                          onClick={() => handleChat((p as Record<string,unknown>).userId as number | undefined)}
+                          onClick={() => handleChat(p.userId)}
                           className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-[#2C74B3] hover:bg-blue-100 text-xs font-semibold transition-colors"
                         >
                           <i className="bi bi-chat-dots-fill" /> Chat

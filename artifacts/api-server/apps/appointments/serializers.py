@@ -9,11 +9,14 @@ class AppointmentSerializer(serializers.ModelSerializer):
     patientName = serializers.CharField(source='patient.user.name', read_only=True)
     doctorName = serializers.CharField(source='doctor.user.name', read_only=True)
     doctorSpecialization = serializers.CharField(source='doctor.specialization', read_only=True)
+    doctorUserId = serializers.IntegerField(source='doctor.user.id', read_only=True)
+    patientUserId = serializers.IntegerField(source='patient.user.id', read_only=True)
 
     class Meta:
         model = Appointment
         fields = ['id', 'patientId', 'doctorId', 'patientName', 'doctorName',
-                  'doctorSpecialization', 'date', 'time', 'status', 'notes', 'created_at']
+                  'doctorSpecialization', 'doctorUserId', 'patientUserId',
+                  'date', 'time', 'status', 'notes', 'created_at']
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)

@@ -225,7 +225,7 @@ export default function ChatPage() {
     if (!showNewChat || !isLoggedIn) return;
     setApptContactsLoading(true);
     api.appointments.contacts()
-      .then(data => setApptContacts(data as unknown as ApptContact[]))
+      .then(data => setApptContacts(data as ApptContact[]))
       .catch(() => setApptContacts([]))
       .finally(() => setApptContactsLoading(false));
   }, [showNewChat, isLoggedIn]);
@@ -532,9 +532,17 @@ export default function ChatPage() {
             {/* Conversation list */}
             <div className="flex-1 overflow-y-auto scrollbar-thin">
               {loadingConvos && (
-                <div className="text-center py-8 text-gray-400 text-sm">
-                  <i className="bi bi-arrow-repeat animate-spin text-2xl block mb-2" />
-                  Loading…
+                <div className="divide-y divide-gray-100">
+                  {Array.from({length: 5}).map((_, i) => (
+                    <div key={i} className="flex items-center gap-3 px-4 py-3">
+                      <div className="w-12 h-12 rounded-full bg-gray-200 animate-pulse flex-shrink-0" />
+                      <div className="flex-1 space-y-2">
+                        <div className="h-3.5 bg-gray-200 rounded animate-pulse w-2/3" />
+                        <div className="h-3 bg-gray-100 rounded animate-pulse w-4/5" />
+                      </div>
+                      <div className="h-2.5 w-8 bg-gray-100 rounded animate-pulse" />
+                    </div>
+                  ))}
                 </div>
               )}
 
@@ -623,9 +631,13 @@ export default function ChatPage() {
                 {/* Messages */}
                 <div className="flex-1 overflow-y-auto scrollbar-thin chat-bg px-4 py-4 space-y-1">
                   {loadingMsgs && (
-                    <div className="text-center py-8 text-gray-400 text-sm">
-                      <i className="bi bi-arrow-repeat animate-spin text-2xl block mb-2" />
-                      Loading messages…
+                    <div className="space-y-4 py-2">
+                      {[80, 55, 70, 45, 65].map((w, i) => (
+                        <div key={i} className={`flex ${i % 2 === 0 ? "justify-end" : "justify-start"} items-end gap-2`}>
+                          {i % 2 !== 0 && <div className="w-8 h-8 rounded-full bg-gray-200 animate-pulse flex-shrink-0" />}
+                          <div className={`h-10 bg-gray-200 rounded-2xl animate-pulse`} style={{ width: `${w}%`, maxWidth: "70%" }} />
+                        </div>
+                      ))}
                     </div>
                   )}
 

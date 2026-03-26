@@ -105,14 +105,14 @@ export default function PatientDashboard() {
 
   const handleChatWithDoctor = async (doctorUserId?: number) => {
     if (doctorUserId) {
-      try { await api.chat.start(doctorUserId); } catch { /* ok */ }
+      try { await api.chat.startConversation(doctorUserId); } catch { /* ok */ }
     }
     router.push("/chat");
   };
 
   const rawAppts: Appointment[]  = apts.data?.data ?? [];
-  const allAppts = rawAppts.map(a =>
-    cancelledIds.has(a.id) ? { ...a, status: "cancelled" } : a
+  const allAppts: Appointment[] = rawAppts.map(a =>
+    cancelledIds.has(a.id) ? { ...a, status: "cancelled" as const } : a
   );
   const upcoming: Appointment[] = allAppts.filter(a => ["confirmed","pending"].includes(String(a.status).toLowerCase()));
   const past: Appointment[]     = allAppts.filter(a => ["completed","cancelled"].includes(String(a.status).toLowerCase()));
@@ -253,7 +253,7 @@ export default function PatientDashboard() {
                                   <td className="px-4 py-4">
                                     <div className="flex items-center gap-2">
                                       <button
-                                        onClick={() => handleChatWithDoctor((a as Record<string,unknown>).doctorUserId as number | undefined)}
+                                        onClick={() => handleChatWithDoctor(a.doctorUserId)}
                                         className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-blue-100 text-[#2C74B3] hover:bg-blue-200 text-xs font-semibold transition-colors"
                                       >
                                         <i className="bi bi-chat-dots-fill" /> Chat
@@ -347,7 +347,7 @@ export default function PatientDashboard() {
                               <td className="px-4 py-4 font-bold text-[#0A2647]">{inv.amount}</td>
                               <td className="px-4 py-4 text-gray-600 text-sm">{inv.createdAt ? new Date(String(inv.createdAt)).toLocaleDateString() : ""}</td>
                               <td className="px-4 py-4">
-                                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusClass[inv.status] ?? ""}`}>{inv.status}</span>
+                                <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statusClass[inv.status ?? ""] ?? ""}`}>{inv.status}</span>
                               </td>
                               <td className="px-4 py-4">
                                 <button className="text-[#2C74B3] text-xs hover:underline font-semibold flex items-center gap-1">
